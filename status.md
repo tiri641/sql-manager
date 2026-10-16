@@ -25,23 +25,24 @@
 - AWSインフラ構成図PNGを生成・目視確認し、ADR-0003でCodeBuildとVPC build ENIの境界を明確化
 - リリースチェックリストを作成
 - PRをPhase単位で作成し、Phase間の変更混在を禁止する開発フローを追加
+- Phase 1成果物を`phase/1-design`へCommit・Pushし、[Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)を作成
 - READMEから主要な開発ルール・設計書・エージェントへリンク
 
 ## In progress
 
-- Phase 1成果物のユーザー承認待ち
+- [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)のレビューとPhase 1成果物のユーザー承認待ち
 
 ## Next actions
 
 1. 次のセッション開始時に、このファイル、`AGENTS.md`、`docs/engineering-loop.md`、`docs/adr/README.md`を読む。
-2. Open Questions（IdP、承認者割当、DDL/ロック、保持期間、アカウント分離、DB実行台帳、IAM DB Authentication）を確定する。
-3. Phase 1成果物をユーザーが承認する。
-4. 承認後、Phase 2実装Planを作成し、Plan Review Gateでレビュー・修正・再レビューしてから提示する。
+2. [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)のレビュー結果を確認し、Phase 1成果物を承認する。
+3. Open Questions（IdP、承認者割当、DDL/ロック、保持期間、アカウント分離、DB実行台帳、IAM DB Authentication）を対応するPhaseの決定ゲートとして管理する。
+4. Phase 1 PRの承認・マージ後、Phase 2実装Planを作成し、Plan Review Gateでレビュー・修正・再レビューしてから提示する。
 
 ## Blockers / limitations
 
-- GitHubリポジトリは取得済みだが、`tiri641/sql-manager` はコミット・ブランチ上のソース・テスト・GitHub Actionsがない空のリポジトリだった。
-- 現Workspaceの`.git`は空の読み取り専用メタデータで、GitHub remote・Commit・Pushは未実施。
+- GitHubリポジトリ取得時点では空だったため、初期`main`コミットとPhase 1用`phase/1-design`ブランチを作成した。既存ソース・テスト・GitHub Actionsはない。
+- 現Workspaceの`.git`は空の読み取り専用メタデータのため、Git操作は取得済みcloneを使用している。
 - Mermaid CLIの完全描画はChromium sandbox制約で未完了。Mermaidの静的構造検査とAWSインフラPNG生成は成功している。
 - `.agents/` は実行環境側で読み取り専用のため、役割定義は`.github/agents/`へ配置した。
 
@@ -62,7 +63,8 @@
 - `diagrams`/GraphvizによるAWSインフラPNG生成: 成功、目視確認済み
 - Mermaid静的構造検査: 成功。CLI完全描画: Chromium sandbox制約で未完了
 - GitHubリポジトリ取得: 成功。ただし空リポジトリ
-- GitHub remote/PR/Push: 未実施
+- GitHub Push: `main`、`phase/1-design`ともに成功
+- GitHub PR: [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)を作成済み
 
 ## Session handoff
 
