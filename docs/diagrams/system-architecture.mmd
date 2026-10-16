@@ -1,0 +1,63 @@
+flowchart LR
+    subgraph Client[利用者ブラウザ]
+        React[React + TypeScript UI]
+    end
+
+    subgraph Edge[公開エッジ境界]
+        CF[CloudFront]
+        UI[S3 UIバケット<br/>Block Public Access + OAC]
+    end
+
+    subgraph Identity[認証境界]
+        Cognito[Amazon Cognito<br/>User Pool / JWT]
+    end
+
+    subgraph Control[コントロールプレーン]
+        APIGW[API Gateway<br/>JWT Authorizer]
+        API[Lambda API<br/>認可・状態遷移]
+        Dispatcher[Lambda Dispatcher / Reconciler]
+        EB[Amazon EventBridge<br/>Scheduler / retry rule]
+        DDB[DynamoDB<br/>Patch / File / Execution / Approval / Audit / Outbox]
+        SQLS3[S3 SQLバケット<br/>非公開・Versioning・暗号化]
+        LogS3[S3 Logバケット<br/>非公開・Versioning・暗号化]
+        KMS[AWS KMS]
+    end
+
+    subgraph Execution[実行境界: 環境ごとに分離]
+        CB[CodeBuild managed service<br/>VPC build ENI・環境別IAMロール]
+        Secret[Secrets Manager<br/>環境別DB Secret]
+        RDS[(RDS for PostgreSQL<br/>Private Subnet)]
+        Guard[実行ガード / DB実行台帳<br/>条件付き更新]
+    end
+
+    React -->|静的ファイル| CF
+    CF -->|OAC| UI
+    React -->|ログイン| Cognito
+    React -->|JWT付きAPI| APIGW
+    APIGW -->|claims| API
+    API -->|Patch状態・ハッシュ・監査| DDB
+    API -->|短期PUT署名URL| React
+    React -->|SQL本文を直接PUT| SQLS3
+    API -->|完了時HeadObject・VersionId・SHA-256検証| SQLS3
+    API -->|短期GET署名URL| React
+    React -->|API発行の短期GET URLで取得| LogS3
+    API -->|Execution + OutboxをTransactWriteItems| DDB
+    EB -->|定期起動・再試行| Dispatcher
+    DDB -->|Outbox poll + 条件付きlease| Dispatcher
+    Dispatcher -->|StartBuild + idempotency token| CB
+    Dispatcher -->|状態・リース・監査| DDB
+    CB -->|VersionId指定取得| SQLS3
+    CB -->|Secret取得| Secret
+    CB -->|条件付きguard| Guard
+    CB -->|TLS 5432 / SQL実行| RDS
+    CB -->|結果ログ新規キーPut| LogS3
+    CB -->|実行状態・結果キー| DDB
+    SQLS3 -.->|SSE-KMS| KMS
+    LogS3 -.->|SSE-KMS| KMS
+
+    classDef boundary fill:#eef5ff,stroke:#4c78a8,stroke-width:1px;
+    classDef sensitive fill:#fff3e0,stroke:#cc7a00,stroke-width:1px;
+    classDef execution fill:#eaf7ea,stroke:#3a8f3a,stroke-width:1px;
+    class Edge,Identity,Control,Execution boundary;
+    class SQLS3,LogS3,Secret,RDS sensitive;
+    class CB,Guard execution;

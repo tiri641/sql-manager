@@ -1,0 +1,14 @@
+# SQL Patch Manager review ownership
+# 社内導入時は実際のGitHub Teamへ置き換える。未設定の担当者を推測して追加しない。
+
+* @tiri641
+
+# Design and security boundaries require explicit review.
+/AGENTS.md @tiri641
+/docs/architecture.md @tiri641
+/docs/security-design.md @tiri641
+/docs/data-model.md @tiri641
+/docs/workflow-design.md @tiri641
+/infra/ @tiri641
+/apps/backend/ @tiri641
+/apps/frontend/ @tiri641

@@ -1,0 +1,42 @@
+flowchart LR
+    Owner[アップロード者]
+    Approver[指定承認者]
+    Other[その他の社員]
+    BreakGlass[管理者BreakGlass<br/>理由・チケット・時間を監査]
+
+    Cognito[Amazon Cognito<br/>JWT / sub / groups]
+    API[API Gateway]
+    Auth[Lambda認可<br/>ownerSub / approverSub / environment / state]
+    DDB[(DynamoDB<br/>Patch・File・Approval・Execution・Audit)]
+    SQL[S3 SQLバケット<br/>非公開・短期GET署名URL]
+    Logs[S3 Logバケット<br/>非公開・短期GET署名URL]
+    Forbidden[403 Forbidden<br/>担当外・自己承認・権限不足]
+
+    Owner -->|ログイン| Cognito
+    Approver -->|ログイン| Cognito
+    Other -->|ログイン| Cognito
+    BreakGlass -->|分離された緊急認証| Cognito
+    Cognito -->|JWT claims| API
+    API --> Auth
+    Auth -->|所有者/担当承認者を照会| DDB
+    Auth -->|認可成功| SQL
+    Auth -->|認可成功| Logs
+    Auth -->|操作・閲覧・承認をAudit| DDB
+    Owner -->|自分のPatch閲覧・dry-run・承認申請| API
+    Owner -->|自己承認| Forbidden
+    Approver -->|担当Patch閲覧・承認/却下| API
+    Other -->|担当外Patch/ログ/承認| Forbidden
+    Auth -->|ownerSub == approverSub| Forbidden
+    Auth -->|environment権限なし| Forbidden
+    BreakGlass -->|通常権限と別の監査経路| API
+    SQL -.->|本文はAPI/DDB/通常ログに保存しない| DDB
+    Logs -.->|結果ログは権限確認後だけURL発行| DDB
+
+    classDef user fill:#f5f5f5,stroke:#666;
+    classDef service fill:#eef5ff,stroke:#4c78a8;
+    classDef sensitive fill:#fff3e0,stroke:#cc7a00;
+    classDef deny fill:#ffe8e8,stroke:#c33;
+    class Owner,Approver,Other,BreakGlass user;
+    class Cognito,API,Auth,DDB service;
+    class SQL,Logs sensitive;
+    class Forbidden deny;
