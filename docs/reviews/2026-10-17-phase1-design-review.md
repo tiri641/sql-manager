@@ -53,7 +53,7 @@
 - Mermaid CLI完全描画: Chromium sandbox制約により未完了
 - 機密情報パターン検査: 問題なし
 - AWSリソース作成、DB接続、SQL実行: 未実施
-- Commit: `f60f350 docs(phase1): add design and development process`
+- Commits: `f60f350 docs(phase1): add design and development process`, `ad30baf docs(phase1): record pull request handoff`
 - Push: `main`、`phase/1-design`ともに成功
 - PR: [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)を作成済み
 
