@@ -188,6 +188,8 @@ test("execution project is fail-closed and does not retry automatically", () => 
   assert.match(policies, /ec2:CreateNetworkInterfacePermission/);
   assert.match(policies, /ec2:AuthorizedService/);
   assert.match(policies, /codebuild\.amazonaws\.com/);
+  assert.match(policies, /"ec2:Vpc"/);
+  assert.match(policies, /:vpc\//);
 });
 
 test("phase 2 does not create a public API route for SQL operations", () => {

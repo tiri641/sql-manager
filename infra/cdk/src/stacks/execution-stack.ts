@@ -129,7 +129,11 @@ export class ExecutionStack extends Stack {
           "ec2:DescribeVpcs",
         ],
         resources: ["*"],
-        conditions: { StringEquals: { "ec2:Vpc": vpc.vpcId } },
+        conditions: {
+          ArnEquals: {
+            "ec2:Vpc": this.formatArn({ service: "ec2", resource: "vpc", resourceName: vpc.vpcId }),
+          },
+        },
       }),
     );
     role.addToPolicy(
