@@ -31,7 +31,10 @@ export class ExecutionStack extends Stack {
       assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
       description: `Least-privilege SQL executor role for ${props.config.name}`,
     });
-    this.addVpcNetworkInterfacePermissions(this.buildRole, props.network.vpc);
+    this.addVpcNetworkInterfacePermissions(
+      this.buildRole,
+      props.network.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds,
+    );
 
     const buildSpec = codebuild.BuildSpec.fromObject({
       version: "0.2",
@@ -111,12 +114,14 @@ export class ExecutionStack extends Stack {
     this.node.addMetadata("ExecutionMode", "Phase 2 fail-closed placeholder; SQL runner is Phase 3.");
   }
 
-  private addVpcNetworkInterfacePermissions(role: iam.Role, vpc: ec2.Vpc): void {
-    const isolatedSubnetArns = vpc
-      .selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED })
-      .subnetIds
-      .map((subnetId) => this.formatArn({ service: "ec2", resource: "subnet", resourceName: subnetId }));
+  private addVpcNetworkInterfacePermissions(role: iam.Role, isolatedSubnetIds: readonly string[]): void {
+    const isolatedSubnetArns = isolatedSubnetIds.map((subnetId) =>
+      this.formatArn({ service: "ec2", resource: "subnet", resourceName: subnetId }),
+    );
 
+    // AWS CodeBuild's documented VPC service-role example keeps the
+    // CreateNetworkInterface/Describe permissions on Resource "*" and
+    // constrains CreateNetworkInterfacePermission by subnet and service.
     role.addToPolicy(
       new iam.PolicyStatement({
         actions: [
@@ -129,11 +134,6 @@ export class ExecutionStack extends Stack {
           "ec2:DescribeVpcs",
         ],
         resources: ["*"],
-        conditions: {
-          ArnEquals: {
-            "ec2:Vpc": this.formatArn({ service: "ec2", resource: "vpc", resourceName: vpc.vpcId }),
-          },
-        },
       }),
     );
     role.addToPolicy(
