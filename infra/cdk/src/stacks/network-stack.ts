@@ -42,12 +42,14 @@ export class NetworkStack extends Stack {
         destination: ec2.FlowLogDestination.toCloudWatchLogs(flowLogGroup),
       });
     }
-    NagSuppressions.addResourceSuppressions(this.vpc.node.defaultChild as ec2.CfnVPC, [
-      {
-        id: "AwsSolutions-VPC7",
-        reason: "The personal learning profile disables VPC Flow Logs to avoid CloudWatch ingestion and retention cost; company deployment must enable them through EnvironmentConfig before real data use.",
-      },
-    ], true);
+    if (!props.config.enableVpcFlowLogs) {
+      NagSuppressions.addResourceSuppressions(this.vpc.node.defaultChild as ec2.CfnVPC, [
+        {
+          id: "AwsSolutions-VPC7",
+          reason: "The personal learning profile disables VPC Flow Logs to avoid CloudWatch ingestion and retention cost; company deployment must enable them through EnvironmentConfig before real data use.",
+        },
+      ], true);
+    }
 
     this.rdsSecurityGroup = new ec2.SecurityGroup(this, "RdsSecurityGroup", {
       vpc: this.vpc,
@@ -111,9 +113,14 @@ export class NetworkStack extends Stack {
     // Keep the connection boundary explicit without introducing an internet
     // route or NAT dependency into the execution subnet.
     this.codeBuildSecurityGroup.addEgressRule(
-      ec2.Peer.ipv4("10.60.0.0/16"),
+      ec2.Peer.ipv4(props.config.vpcCidr),
       ec2.Port.udp(53),
       "VPC DNS resolution",
+    );
+    this.codeBuildSecurityGroup.addEgressRule(
+      ec2.Peer.ipv4(props.config.vpcCidr),
+      ec2.Port.tcp(53),
+      "VPC DNS TCP fallback",
     );
 
     this.addMetadata("DesignNote", {

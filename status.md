@@ -31,14 +31,17 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 ## In progress
 
 - Phase 2の低コスト環境プロファイル反映、検証、役割別レビューは完了
-- GitHub upstreamを再取得し、`phase/2-infra-cdk`ブランチ上で最終Diffレビュー、修正、再検証、ローカルコミット（`812324d`）まで完了
-- Phase 2コミット（`812324d`）をPushし、[PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)を作成済み
-- PR #2のGitHub Actions CI（dev/test/prod）がすべてPass
+- GitHub upstreamを再取得し、`phase/2-infra-cdk`のPR実装コミット（`812324d`）とCI記録コミット（最新Push済み`912624e`）を確認
+- [PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)は`912624e`が現在のPush済みHEAD。初回レビューの修正は作業ツリーにあり、まだ未コミット・未Push
+- PR #2のGitHub Actions CI（`912624e`のdev/test/prod）がすべてPass
+- PR #2最終DiffをTDD Test Engineer / Quality Engineer / Release Manager観点で再レビューし、[レビュー記録](docs/reviews/2026-10-17-phase2-pr2-tdd-quality-release.md)へ`CHANGES_REQUESTED`を記録。実装変更・Push・Mergeは未実施
+- 初回レビューのHigh/Blocking指摘を修正したローカルDiffを、TDD Test Engineer / Quality Engineer / Release Manager観点で再レビュー済み。CodeBuildはL1 `CfnProject`へ変更し、標準ログIAM権限も生成しない境界を追加した。修正後ローカルDiffはBlocking/High 0件だが、未コミット・未PushのためPR #2は`CHANGES_REQUESTED`
 
 ## Next actions
 
-1. PR #2のレビュー・承認・マージを待つ。
-2. PRマージ後にPhase 3のPlan Review Gateへ進む。
+1. 修正後Diffをコミットし、PR #2の更新コミットをPushする。
+2. 更新後のGitHub Actions CIと同一3観点の再レビューを確認する。
+3. PR #2をマージ後、Phase 3のPlan Review Gateへ進む。
 
 ## Blockers / limitations
 
@@ -56,6 +59,8 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 - [ADR-0004](docs/adr/0004-phase2-cdk-environment-boundary.md): Phase 2はCDK実装・検証のみ。devダミーRDS、test/prod外部RDS、SSE-S3/SSE-KMS、deploy禁止を採用する。
 - [ADR-0005](docs/adr/0005-phase2-security-warning-remediation.md): Cognito Threat Protection、CloudFrontパラメータ、KMS OAC初回例外、cdk-nag抑制の根拠を定める。
 - [ADR-0006](docs/adr/0006-cost-conscious-learning-profile.md): 個人開発の全環境を低コスト既定値にし、本番強化を設定で切り替える。
+- [ADR-0007](docs/adr/0007-phase2-codebuild-fail-closed-boundary.md): Phase 2のCodeBuildはNO_SOURCE/NO_ARTIFACTS・標準ログ無効・データプレーン権限なしとする。
+- [ADR-0008](docs/adr/0008-eventbridge-scheduler-and-dispatch-queue-boundary.md): EventBridgeは定期確認・起動漏れ検知に限定し、Phase 3で耐久配送方式を決定する。
 
 ## Validation evidence
 
@@ -73,10 +78,13 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 - `npm install --ignore-scripts --offline`: 成功、lockfileと依存関係を検証
 - `python3 docs/diagrams/aws-infrastructure.py`: 一時環境の`diagrams`/Graphvizで成功、PNG目視確認済み
 - `python3 -m ast docs/diagrams/aws-infrastructure.py`: 成功
-- `file docs/diagrams/aws-infrastructure.png`: PNG生成結果を確認（3141x4751、RGBA）
+- `file docs/diagrams/aws-infrastructure.png`: 修正後PNG生成結果を確認（3149x4786、RGBA）
 - `docs/reviews/2026-10-17-phase2-cost-conscious.md`: 最終Diffを含む役割別レビュー。`PR_ALLOWED`、Blocking/High 0件
-- `git show --check HEAD`: 成功（`812324d`）
-- GitHub Actions CI: `verify (dev)`, `verify (test)`, `verify (prod)` すべてPass
+- `git diff --check`: 修正後の作業ツリーで成功
+- CodeBuild生成テンプレートにSQL/Log S3、DynamoDB、Secrets Managerのデータプレーン権限がないことを確認
+- 修正後のdev/test/prod `cdk synth`・`cdk-nag`: 成功。ERROR/WARNINGなし、根拠付きINFOのみ
+- GitHub Actions CI: `912624e`時点の`verify (dev)`, `verify (test)`, `verify (prod)`はPass。未コミット修正後DiffのGitHub CIは未実行
+- 修正後ローカルDiffの再レビュー: [レビュー記録](docs/reviews/2026-10-17-phase2-pr2-tdd-quality-release-rereview.md)。ローカルはBlocking/High 0件、PRは未反映のため`CHANGES_REQUESTED`
 - `cdk deploy` / `cdk bootstrap`: 未実行（Phase 2の禁止境界）
 - AWS API、RDS、SQL: 未実行
 

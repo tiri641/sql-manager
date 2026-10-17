@@ -44,6 +44,9 @@ jobs:
       - name: Static secret scan
         run: npm run security:scan
 
+      - name: Documentation and diagram checks
+        run: npm run docs:verify
+
       - name: CDK synth (${{ matrix.environment }})
         run: npm --workspace @sql-patch-manager/cdk exec cdk -- synth --context environment=${{ matrix.environment }}
 

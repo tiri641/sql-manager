@@ -62,7 +62,7 @@ CDKで環境別の安全なAWS基盤を作り、アプリからSQL本文を直�
 
 ### 実装対象
 
-CDK(TypeScript)、CloudFront/S3 OAC、Cognito、API Gateway、Lambda骨格、DynamoDB、SQL/Log S3、KMS、VPC/Private Subnet、RDSダミー定義、Security Group、VPC Endpoint、CodeBuildプロジェクト、Secrets Manager、CloudWatchメトリクス、Budgets。
+CDK(TypeScript)、CloudFront/S3 OAC、Cognito、API Gateway、Lambda骨格、DynamoDB、SQL/Log S3、KMS、VPC/Private Subnet、RDSダミー定義、Security Group、VPC Endpoint、Fail-Closed CodeBuildプロジェクト、Secrets Manager参照境界、APIアクセスログ、Budgets。SQL実行権限、標準ビルドログ、実行結果Put権限はPhase 3の対象とする。
 
 ### 依存関係
 
@@ -81,7 +81,7 @@ CDK synth、cdk-nag、CloudFormation Assertions、セキュリティグループ
 
 ### テスト項目
 
-IAMポリシー検査、S3公開拒否、KMS権限、RDS SG、CodeBuild VPC、Secret参照、バックアップ設定、コスト上限のテンプレート検査。署名URL、Secret取得、バックアップ復元、実接続は後続Phase。
+IAMポリシー検査、S3公開拒否、KMS権限、RDS SG、CodeBuild VPC、Fail-Closed設定、標準ログ無効、Phase 2でのSQL/Log S3・DynamoDB・Secret権限なし、バックアップ設定、コスト上限のテンプレート検査。署名URL、Secret取得、バックアップ復元、実接続は後続Phase。
 
 ### リスク
 

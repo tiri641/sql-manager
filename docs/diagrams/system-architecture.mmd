@@ -15,8 +15,8 @@ flowchart LR
     subgraph Control[コントロールプレーン]
         APIGW[API Gateway<br/>JWT Authorizer]
         API[Lambda API<br/>認可・状態遷移]
-        Dispatcher[Lambda Dispatcher / Reconciler]
-        EB[Amazon EventBridge<br/>Scheduler / retry rule]
+        Dispatcher[Lambda Dispatcher / Reconciler<br/>Phase 3 planned / not provisioned]
+        EB[Amazon EventBridge<br/>Phase 3 planned / not provisioned<br/>定期確認・起動漏れ検知のみ]
         DDB[DynamoDB<br/>Patch / File / Execution / Approval / Audit / Outbox]
         SQLS3[S3 SQLバケット<br/>非公開・Versioning・暗号化]
         LogS3[S3 Logバケット<br/>非公開・Versioning・暗号化]
@@ -42,7 +42,7 @@ flowchart LR
     API -->|短期GET署名URL| React
     React -->|API発行の短期GET URLで取得| LogS3
     API -->|Execution + OutboxをTransactWriteItems| DDB
-    EB -->|定期起動・再試行| Dispatcher
+    EB -->|定期確認・起動漏れ検知<br/>SQL再実行なし| Dispatcher
     DDB -->|Outbox poll + 条件付きlease| Dispatcher
     Dispatcher -->|StartBuild + idempotency token| CB
     Dispatcher -->|状態・リース・監査| DDB

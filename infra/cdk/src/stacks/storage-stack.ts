@@ -118,6 +118,8 @@ export class StorageStack extends Stack {
         {
           id: `${purpose}-noncurrent-retention`,
           noncurrentVersionExpiration: Duration.days(config.logRetentionDays),
+          abortIncompleteMultipartUploadAfter: Duration.days(7),
+          ...(purpose === "logs" ? { expiration: Duration.days(config.logRetentionDays) } : {}),
         },
       ],
     });

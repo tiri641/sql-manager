@@ -46,12 +46,14 @@ export class ControlPlaneStack extends Stack {
         : {}),
       removalPolicy: RemovalPolicy.RETAIN,
     });
-    NagSuppressions.addResourceSuppressions(this.userPool.node.defaultChild as cognito.CfnUserPool, [
-      {
-        id: "AwsSolutions-COG3",
-        reason: "The personal learning profile uses Cognito Essentials to avoid Plus MAU cost; company deployment must enable Cognito Plus Threat Protection before real data use.",
-      },
-    ]);
+    if (props.config.cognitoFeaturePlan === "essentials") {
+      NagSuppressions.addResourceSuppressions(this.userPool.node.defaultChild as cognito.CfnUserPool, [
+        {
+          id: "AwsSolutions-COG3",
+          reason: "The personal learning profile uses Cognito Essentials to avoid Plus MAU cost; company deployment must enable Cognito Plus Threat Protection before real data use.",
+        },
+      ]);
+    }
     this.userPoolClient = this.userPool.addClient("WebClient", {
       authFlows: { userSrp: true },
       preventUserExistenceErrors: true,
@@ -69,12 +71,14 @@ export class ControlPlaneStack extends Stack {
       encryption: dynamodb.TableEncryption.AWS_MANAGED,
       removalPolicy: RemovalPolicy.RETAIN,
     });
-    NagSuppressions.addResourceSuppressions(this.stateTable.node.defaultChild as dynamodb.CfnTable, [
-      {
-        id: "AwsSolutions-DDB3",
-        reason: "The personal learning profile disables DynamoDB PITR to avoid continuous backup cost; company deployment must enable PITR through EnvironmentConfig before real data use.",
-      },
-    ]);
+    if (!props.config.enableDynamoDbPitr) {
+      NagSuppressions.addResourceSuppressions(this.stateTable.node.defaultChild as dynamodb.CfnTable, [
+        {
+          id: "AwsSolutions-DDB3",
+          reason: "The personal learning profile disables DynamoDB PITR to avoid continuous backup cost; company deployment must enable PITR through EnvironmentConfig before real data use.",
+        },
+      ]);
+    }
 
     for (let index = 1; index <= 6; index += 1) {
       this.stateTable.addGlobalSecondaryIndex({

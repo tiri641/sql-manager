@@ -86,7 +86,7 @@ dry-runは成功扱いにせず、接続が残っていないか、ロック、�
 - 個人開発はRDS停止時間、S3ライフサイクル、DynamoDBオンデマンド、SSE-S3の選択を検討する。ただし本番基準へ移行するときはSSE-KMS、PITR、Multi-AZなどを再評価する。
 - NAT Gatewayは標準構成に含めない。依存取得のために一時導入する場合は、外部通信先・時間・EIP・削除確認を記録する。
 - VPC EndpointはS3/DynamoDB Gatewayを優先し、Secrets Manager Interface Endpointは必要なAZ数に絞る。
-- AWS Budgets、Cost Anomaly Detection、環境別Cost Allocation TagをPhase 2で設定する。
+- Phase 2ではAWS Budgetsの予算定義だけを合成する。通知先、Cost Anomaly Detection、環境別Cost Allocation Tagは、AWSアカウント・通知先・デプロイ対象を確定した後のdeploy前Gateで設定する。Budgetは請求上限ではない。
 
 ## 7. GitHubに機密SQLが残っている場合
 

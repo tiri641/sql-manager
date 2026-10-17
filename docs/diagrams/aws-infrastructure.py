@@ -45,8 +45,8 @@ with Diagram(
         cognito = Cognito("Cognito\nUser Pool")
         api_gateway = APIGateway("API Gateway\nJWT")
         api_lambda = Lambda("API Lambda\n認可・状態遷移")
-        dispatcher = Lambda("Dispatcher / Reconciler")
-        eventbridge = Eventbridge("EventBridge\nScheduler / retry rule")
+        dispatcher = Lambda("Dispatcher / Reconciler\nPhase 3 planned")
+        eventbridge = Eventbridge("EventBridge\nPhase 3 planned\n定期確認・起動漏れ検知のみ")
         patch_table = Dynamodb("DynamoDB\nPatch/File/Execution/Approval/Audit/Outbox")
         sql_bucket = S3("SQL bucket\nVersioning + SSE")
         log_bucket = S3("Log bucket\nVersioning + SSE")
@@ -59,9 +59,9 @@ with Diagram(
     api_lambda >> Edge(label="状態・監査") >> patch_table
     api_lambda >> Edge(label="署名URL") >> sql_bucket
     api_lambda >> Edge(label="署名URL") >> log_bucket
-    eventbridge >> Edge(label="定期起動・再試行") >> dispatcher
-    patch_table >> Edge(label="Outbox poll + lease") >> dispatcher
-    dispatcher >> Edge(label="StartBuild") >> iam
+    eventbridge >> Edge(label="Phase 3 planned\nSQL再実行なし") >> dispatcher
+    patch_table >> Edge(label="Phase 3 planned\nOutbox poll + lease") >> dispatcher
+    dispatcher >> Edge(label="Phase 3 planned\nStartBuild") >> iam
     sql_bucket >> Edge(style="dashed", label="SSE") >> kms
     log_bucket >> Edge(style="dashed", label="SSE") >> kms
     iam >> Edge(style="dashed", label="権限付与") >> api_lambda
@@ -76,8 +76,8 @@ with Diagram(
             dev_endpoint = Endpoint("S3/DDB Gateway\nSecrets Manager Interface")
             dev_sg = GenericFirewall("Security Group\nCodeBuild -> RDS:5432")
             dev_private >> dev_vpc
-            dev_build >> Edge(label="GetSecretValue") >> dev_secret
-            dev_build >> Edge(label="S3/DDB") >> dev_endpoint
+            dev_build >> Edge(label="Phase 3 planned\nGetSecretValue") >> dev_secret
+            dev_build >> Edge(label="Phase 3 planned\nS3/DDB") >> dev_endpoint
             dev_sg >> Edge(style="dashed", label="Inbound only from CodeBuild") >> dev_db
         dev_build >> Edge(label="VPC build ENI / TLS 5432") >> dev_db
 
@@ -88,8 +88,8 @@ with Diagram(
             test_vpc = VPC("VPC")
             test_secret = SecretsManager("Secret-test")
             test_endpoint = Endpoint("S3/DDB Gateway\nSecrets Manager Interface")
-            test_build >> Edge(label="Secret") >> test_secret
-            test_build >> Edge(label="S3/DDB") >> test_endpoint
+            test_build >> Edge(label="Phase 3 planned\nSecret") >> test_secret
+            test_build >> Edge(label="Phase 3 planned\nS3/DDB") >> test_endpoint
             test_private >> test_vpc
         test_db = RDS("外部RDS-test\n別管理・別VPC等\nPhase 3接続方式未確定")
         test_build >> Edge(label="将来の承認済みPrivate接続") >> test_db
@@ -101,8 +101,8 @@ with Diagram(
             prod_vpc = VPC("VPC")
             prod_secret = SecretsManager("Secret-prod")
             prod_endpoint = Endpoint("S3/DDB Gateway\nSecrets Manager Interface")
-            prod_build >> Edge(label="Secret") >> prod_secret
-            prod_build >> Edge(label="S3/DDB") >> prod_endpoint
+            prod_build >> Edge(label="Phase 3 planned\nSecret") >> prod_secret
+            prod_build >> Edge(label="Phase 3 planned\nS3/DDB") >> prod_endpoint
             prod_private >> prod_vpc
         prod_db = RDS("外部RDS-prod\n別管理・別VPC等\nPhase 3接続方式未確定")
         prod_build >> Edge(label="将来の厳格なPrivate接続") >> prod_db
@@ -110,6 +110,6 @@ with Diagram(
     dispatcher >> Edge(label="環境別AssumeRoleまたは同一アカウント権限") >> dev_build
     dispatcher >> Edge(label="環境別AssumeRole") >> test_build
     dispatcher >> Edge(label="強い承認後のみ") >> prod_build
-    dev_build >> Edge(style="dashed", label="結果Put") >> log_bucket
-    test_build >> Edge(style="dashed", label="結果Put") >> log_bucket
-    prod_build >> Edge(style="dashed", label="結果Put") >> log_bucket
+    dev_build >> Edge(style="dashed", label="Phase 3 planned\n結果Put") >> log_bucket
+    test_build >> Edge(style="dashed", label="Phase 3 planned\n結果Put") >> log_bucket
+    prod_build >> Edge(style="dashed", label="Phase 3 planned\n結果Put") >> log_bucket

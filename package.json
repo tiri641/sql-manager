@@ -12,6 +12,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
+    "docs:verify": "node scripts/verify-docs.mjs",
     "cdk:synth": "npm --workspace @sql-patch-manager/cdk run synth",
     "cdk:nag": "npm --workspace @sql-patch-manager/cdk run nag",
     "security:scan": "npm --workspace @sql-patch-manager/cdk run security:scan"

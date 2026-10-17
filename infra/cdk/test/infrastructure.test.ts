@@ -69,6 +69,17 @@ test("network has no NAT or public subnet and has required endpoints", () => {
   });
 });
 
+test("network DNS egress follows the configured VPC CIDR", () => {
+  const app = new App();
+  const config = { ...buildEnvironmentConfig("dev"), vpcCidr: "10.70.0.0/16" };
+  const network = new NetworkStack(app, "CustomNetwork", { config });
+  const template = Template.fromStack(network);
+  const securityGroups = JSON.stringify(template.findResources("AWS::EC2::SecurityGroup"));
+
+  assert.match(securityGroups, /10\.70\.0\.0\/16/);
+  assert.doesNotMatch(securityGroups, /10\.60\.0\.0\/16/);
+});
+
 test("storage buckets are private, versioned, and encrypted", () => {
   const { storage } = createDevStacks();
   const template = Template.fromStack(storage);
@@ -89,10 +100,15 @@ test("storage buckets are private, versioned, and encrypted", () => {
     },
   });
   template.resourceCountIs("AWS::CloudFront::OriginAccessControl", 1);
+
+  const bucketResources = JSON.stringify(template.findResources("AWS::S3::Bucket"));
+  assert.match(bucketResources, /AbortIncompleteMultipartUpload/);
+  assert.match(bucketResources, /NoncurrentVersionExpiration/);
+  assert.match(bucketResources, /ExpirationInDays.*30/);
 });
 
-test("dummy RDS is private and CodeBuild is the only database ingress", () => {
-  const { database } = createDevStacks();
+test("dummy RDS is private and only CodeBuild SG can reach PostgreSQL", () => {
+  const { database, network } = createDevStacks();
   const template = Template.fromStack(database);
 
   template.hasResourceProperties("AWS::RDS::DBInstance", {
@@ -103,6 +119,14 @@ test("dummy RDS is private and CodeBuild is the only database ingress", () => {
   template.hasResourceProperties("AWS::SecretsManager::Secret", {
     GenerateSecretString: Match.objectLike({ GenerateStringKey: "password" }),
   });
+
+  const networkTemplate = Template.fromStack(network);
+  const ingress = JSON.stringify(networkTemplate.findResources("AWS::EC2::SecurityGroupIngress"));
+  const egress = JSON.stringify(networkTemplate.findResources("AWS::EC2::SecurityGroupEgress"));
+  assert.match(ingress, /5432/);
+  assert.match(ingress, /SourceSecurityGroupId/);
+  assert.doesNotMatch(ingress, /0\.0\.0\.0\/0/);
+  assert.match(egress, /5432/);
 });
 
 test("control plane has Cognito, JWT authorizer, PITR table, and Node 24 Lambda", () => {
@@ -137,16 +161,29 @@ test("execution project is fail-closed and does not retry automatically", () => 
       readonly ConcurrentBuildLimit: number;
       readonly AutoRetryLimit: number;
       readonly VpcConfig: { readonly Subnets: readonly unknown[]; readonly SecurityGroupIds: readonly unknown[] };
+      readonly Artifacts: { readonly Type: string };
+      readonly Source: { readonly BuildSpec: string; readonly Type: string };
       readonly LogsConfig: { readonly CloudWatchLogs: { readonly Status: string }; readonly S3Logs: { readonly Status: string } };
     };
   };
 
   assert.equal(project.Properties.ConcurrentBuildLimit, 1);
   assert.equal(project.Properties.AutoRetryLimit, 0);
+  assert.equal(project.Properties.Artifacts.Type, "NO_ARTIFACTS");
+  assert.equal(project.Properties.Source.Type, "NO_SOURCE");
+  assert.match(project.Properties.Source.BuildSpec, /SQL execution is disabled in Phase 2/);
+  assert.match(project.Properties.Source.BuildSpec, /exit 1/);
   assert.ok(project.Properties.VpcConfig.Subnets.length > 0);
   assert.ok(project.Properties.VpcConfig.SecurityGroupIds.length > 0);
   assert.equal(project.Properties.LogsConfig.CloudWatchLogs.Status, "DISABLED");
-  assert.equal(project.Properties.LogsConfig.S3Logs.Status, "ENABLED");
+  assert.equal(project.Properties.LogsConfig.S3Logs.Status, "DISABLED");
+
+  const policies = JSON.stringify(template.findResources("AWS::IAM::Policy"));
+  assert.doesNotMatch(policies, /s3:(GetObject|GetObjectVersion|PutObject|DeleteObject)/);
+  assert.doesNotMatch(policies, /dynamodb:(GetItem|PutItem|UpdateItem)/);
+  assert.doesNotMatch(policies, /secretsmanager:GetSecretValue/);
+  assert.doesNotMatch(policies, /logs:(CreateLogGroup|CreateLogStream|PutLogEvents)/);
+  assert.doesNotMatch(policies, /kms:(Encrypt|Decrypt|GenerateDataKey)/);
 });
 
 test("phase 2 does not create a public API route for SQL operations", () => {
@@ -173,9 +210,9 @@ test("test environment references external RDS and uses low-cost defaults", () =
   assert.equal(Object.keys(databaseTemplate.findResources("AWS::SecretsManager::Secret")).length, 0);
 
   const executionPolicies = JSON.stringify(Template.fromStack(execution).findResources("AWS::IAM::Policy"));
-  assert.match(executionPolicies, /codebuild\/test/);
-  assert.doesNotMatch(executionPolicies, /codebuild\/dev/);
-  assert.doesNotMatch(executionPolicies, /kms:GenerateDataKey/);
+  assert.doesNotMatch(executionPolicies, /s3:(GetObject|GetObjectVersion|PutObject|DeleteObject)/);
+  assert.doesNotMatch(executionPolicies, /dynamodb:(GetItem|PutItem|UpdateItem)/);
+  assert.doesNotMatch(executionPolicies, /secretsmanager:GetSecretValue/);
 });
 
 test("each environment has an explicit monthly budget definition", () => {

@@ -6,7 +6,7 @@ flowchart TD
     Complete -->|成功| Verified[UPLOAD_VERIFIED]
     Verified --> DryRequest[ownerがドライランを申請]
     DryRequest --> QueueDry[Execution + Outboxを<br/>条件付きで作成]
-    QueueDry --> DispatchDry[DispatcherがCodeBuildを起動]
+    QueueDry --> DispatchDry[Phase 3 planned<br/>DispatcherがCodeBuildを起動<br/>Phase 2では未プロビジョニング]
     DispatchDry --> GuardDry{CodeBuild実行ガードを<br/>取得できたか}
     GuardDry -->|否| Duplicate[重複起動を抑止<br/>SQLは実行しない]
     GuardDry -->|可| VerifyDry[VersionId・SHA-256再検証<br/>parser・危険SQLポリシー検査]
@@ -25,7 +25,7 @@ flowchart TD
     ApprovalRequest --> Approval[指定承認者が確認]
     Approval -->|却下| Rejected[REJECTED<br/>理由とAuditを保存]
     Approval -->|承認| Approved[APPROVED<br/>本実行Outboxを作成]
-    Approved --> AutoExecute[追加操作なしでCodeBuild自動開始]
+    Approved --> AutoExecute[Phase 3 planned<br/>追加操作なしでCodeBuild自動開始<br/>Phase 2では未プロビジョニング]
     AutoExecute --> VerifyExec[execute.sqlのVersionId・SHA-256再検証]
     VerifyExec -->|不一致| IntegrityFail[INTEGRITY_FAILED<br/>実行停止]
     VerifyExec -->|一致| Execute[本実行SQLを実行]

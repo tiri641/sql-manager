@@ -16,7 +16,7 @@
 | DynamoDB | Patch、Revision、File metadata、Execution、Approval、Audit、Outbox | 本文を保存しない。SHA-256・VersionIdのみ |
 | SQL S3 | SQLオブジェクトの暗号化保存、Versioning、保持・削除制御 | 本文を保存 |
 | Log S3 | CodeBuildが生成した実行結果、失敗時の診断最小情報 | SELECT結果等を含み得るため機密扱い |
-| EventBridge / Dispatcher Lambda | Outboxの配送、CodeBuild起動、イベント受信・状態反映 | 本文をイベントに載せない |
+| EventBridge / Dispatcher Lambda（Phase 3 planned） | Outboxの定期確認・起動漏れ検知、CodeBuild起動、状態反映 | EventBridgeはキューやSQL自動再実行ではない。本文をイベントに載せない |
 | CodeBuild | SQLの取得、検査、DB接続、dry-run/execute/rollback、結果ログ作成 | 実行時にだけ取得し、標準出力をCloudWatchへ送らない |
 | Secrets Manager | 環境別DB接続情報、ローテーション | Secret ARNだけを状態に保存 |
 | RDS PostgreSQL | 開発・検証・本番の接続先 | 実行対象データを保持 |
@@ -38,6 +38,7 @@
 ### 4.1 配置
 
 - CloudFront、S3、Cognito、API Gateway、DynamoDB、EventBridge、Secrets ManagerはAWSマネージドサービスとして利用する。
+- EventBridgeはPhase 3で採用する場合も定期確認・起動漏れ検知のSchedulerとし、耐久配送とSQL再実行はOutbox・Dispatcher・選択したキューの責務として別途確定する。[ADR-0008](adr/0008-eventbridge-scheduler-and-dispatch-queue-boundary.md)
 - 個人開発用既定値ではCognito `FeaturePlan.ESSENTIALS`を使用する。社内導入・実データ利用時は`FeaturePlan.PLUS`とThreat Protectionを再評価する。
 - CloudFrontのACM証明書ARNとAlternate Domain Nameはdeploy時パラメータで与え、`UiDomainName`を証明書のSANと一致させる。実値はリポジトリやcontextへ保存しない。
 - API LambdaはDB接続を行わないため、初期案ではVPCへ入れない。これによりLambdaのNAT経由を避ける。
@@ -85,10 +86,12 @@ Phase 2では、論理設計を以下のCDK Stackへ分割して定義する。�
 | `StorageStack` | UI、SQL、実行ログ、アクセスログの非公開S3、Versioning、SSE-S3（社内導入時SSE-KMS）、CloudFront OAC | SQL本文を実行しない |
 | `DatabaseStack` | devのダミーRDS定義、test/prodの外部Secret参照境界 | Phase 2では作成・接続しない |
 | `ControlPlaneStack` | Cognito、HTTP API JWT Authorizer、DynamoDB、Lambda骨格、APIアクセスログ | SQL本文・Secret値を扱わない |
-| `ExecutionStack` | 環境別CodeBuild、VPC build ENI、IAM、retry 0、同時実行1、Fail-Closed BuildSpec | Phase 3までSQL実行不可 |
+| `ExecutionStack` | 環境別CodeBuild、VPC build ENI、IAM、retry 0、同時実行1、`NO_SOURCE`/`NO_ARTIFACTS`、標準ログ無効のFail-Closed BuildSpec | Phase 3までSQL実行不可。Phase 2はSQL/Log S3、DynamoDB、Secret、KMSのデータプレーン権限を付与しない |
 | `BudgetStack` | 環境別の月額Budget定義 | 通知先はdeploy前に設定 |
 
 個人開発用既定値は全環境SSE-S3、1 AZ、DynamoDB PITRなし、VPC Flow Logsなし、devのみ将来作成可能なダミーRDS、test/prodは外部RDS参照とする。社内導入時は環境設定でSSE-KMS、2 AZ以上、PITR、VPC Flow Logs、Cognito Plus/Threat Protectionへ切り替える。CloudFront/S3アクセス監査ログ専用バケットは配信互換性のためSSE-S3とし、SQL本文・実行結果を保存しない。CloudFront証明書ARNとドメイン名はdeploy時パラメータで渡し、contextやリポジトリへ実値を保存しない。KMS + OACの初回ワイルドカードポリシーはCDKの循環依存回避による既知の例外であり、KMSを有効化する環境では初回deploy後にDistribution IDへ絞る。
+
+Phase 2のCodeBuildは実行プレーンの将来境界を合成検証するだけで、ソース、成果物、標準ビルドログ、SQL/Log S3、DynamoDB、Secretへのデータプレーン権限を持たない。SQL取得、DB接続、結果ログの明示的な新規Put、実行状態更新はPhase 3で実行単位のIAMとテストを追加する。
 
 Phase 2の検証は`npm test`、`npm run typecheck`、`npm run build`、`npm run cdk:synth`、`npm run cdk:nag`、`npm run security:scan`で行う。`cdk bootstrap`、`cdk deploy`、実RDS接続、SQL実行はPhase 2の対象外である。
 
