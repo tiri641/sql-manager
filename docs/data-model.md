@@ -69,7 +69,7 @@ Rollbackの状態はPatch METAの表示用状態と、`Approval.operation=ROLLBA
 
 ## 5. Outboxと非同期整合性
 
-DynamoDB状態更新とEventBridge publish、CodeBuild StartBuildは同一トランザクションではない。したがって、実行申請時に次を一つのTransactWriteItemsで作成する。
+DynamoDB状態更新、Dispatcherの起動通知、CodeBuild StartBuildは同一トランザクションではない。したがって、実行申請時に次を一つのTransactWriteItemsで作成する。
 
 1. Executionを `QUEUED` で作成。
 2. Patch METAの状態を `EXECUTION_QUEUED` に変更。
@@ -77,6 +77,8 @@ DynamoDB状態更新とEventBridge publish、CodeBuild StartBuildは同一トラ
 4. Auditを追加。
 
 DispatcherはOutboxを条件付きで `DISPATCHING` にリースし、同じExecution IDを含むStartBuildを呼ぶ。AWS CodeBuildの`StartBuild` idempotency tokenは同じ要求を短時間重複送信した場合の保護に使うが、5分を超える障害回復の唯一の根拠にはしない。開始応答前後で失敗した場合は `DISPATCH_UNKNOWN` とし、ReconcilerがCodeBuild ID、Execution ID、attemptIdの組み合わせを確認する。見つからないからといって自動再実行しない。
+
+EventBridgeを採用する場合の役割は、Dispatcher/Reconcilerの定期確認と起動漏れ検知に限定する。EventBridge自体を耐久キューやSQL実行の自動再試行として扱わず、SQS Standard + DLQを採用するかDispatcherから直接CodeBuildを起動するかはPhase 3のPlan Review Gateで決定する。[ADR-0008](adr/0008-eventbridge-scheduler-and-dispatch-queue-boundary.md)
 
 CodeBuild起動後にプロセスが落ちるケースへ備え、CodeBuild自身がSQL開始前にDynamoDBのExecutionガードを条件付き取得する。既に別のattemptIdが取得済みなら、重複ビルドはSQLを実行せず抑止ログだけを残す。これにより、CodeBuild起動APIの重複をSQL二重実行へ直結させない。
 

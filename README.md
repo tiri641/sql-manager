@@ -4,9 +4,9 @@ AWS上の専用Web UIからSQLパッチを申請し、ドライラン、承認�
 
 Canonical GitHub repository: [tiri641/sql-manager](https://github.com/tiri641/sql-manager)
 
-## Phase 1の範囲
+## 現在のPhase
 
-本リポジトリは詳細設計と構成図のみを扱います。アプリケーションコード、AWS CDKコード、AWSリソースの作成・変更、DB接続、SQL実行は行いません。`apps/` と `infra/` は将来の実装配置として設計書にだけ記載しています。
+現在はPhase 2（AWS基盤CDK実装・検証）です。CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを扱います。`cdk deploy`、`cdk bootstrap`、AWSリソース作成、実RDS接続、SQL実行は行いません。
 
 セッション間の引き継ぎは [status.md](status.md) を正本とし、重要な設計判断は [ADR一覧](docs/adr/README.md) に記録します。
 
@@ -52,6 +52,7 @@ Canonical GitHub repository: [tiri641/sql-manager](https://github.com/tiri641/sq
 - DynamoDBの条件付き更新、TransactWriteItemsによるOutbox、CodeBuildのStartBuild idempotency token、CodeBuild側の実行ガードを組み合わせ、起動漏れ・重複起動・状態不明を別々に扱う。
 - ドライランは「完全な無副作用」を保証しない。トランザクション制御、非トランザクションDDL、外部副作用などを拒否し、明示的にROLLBACK確認できた場合だけ成功とする。
 - 開発・検証・本番は論理的に分離し、社内導入ではAWSアカウント分離を推奨する。個人開発では同一アカウント内の環境別リソース分離を許容する。
+- 個人開発用既定値は全環境1 AZ、NATなし、SSE-S3、Cognito Essentials、PITR/Flow Logsなし、devのみ最小RDSとし、本番向け強化は環境設定で切り替える（[ADR-0006](docs/adr/0006-cost-conscious-learning-profile.md)）。
 
 ## 検証方針
 
@@ -71,13 +72,13 @@ npx @mermaid-js/mermaid-cli -i docs/diagrams/access-control.mmd -o /tmp/access-c
 
 `aws-infrastructure.py` はAWS SDK/CDKを呼び出さず、Graphvizのローカル描画だけを行います。PNG生成後は `docs/diagrams/aws-infrastructure.png` をGit管理し、Mermaid描画確認後はソースと同じ変更としてレビューします。今回の環境ではAWSインフラPNGの生成とMermaidソースの静的構造検査は成功しましたが、Mermaid CLIの完全描画は実行環境のChromium sandbox制約により未完了です。
 
-## 将来のリポジトリ構成
+## リポジトリ構成
 
 ```text
 apps/
 ├── frontend/       # React + TypeScript
-└── backend/        # API Lambda + 非同期処理 Lambda
+└── backend/        # Phase 2: Lambda骨格、Phase 3以降: API・非同期処理
 infra/
-└── cdk/            # AWS CDK(TypeScript)
+└── cdk/            # AWS CDK(TypeScript)、Phase 2で基盤を定義
 docs/               # 本Phaseで作成する設計書・構成図
 ```

@@ -1,0 +1,24 @@
+{
+  "name": "sql-patch-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SQL Patch Manager infrastructure and backend workspace",
+  "workspaces": [
+    "apps/backend",
+    "infra/cdk"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "docs:verify": "node scripts/verify-docs.mjs",
+    "cdk:synth": "npm --workspace @sql-patch-manager/cdk run synth",
+    "cdk:nag": "npm --workspace @sql-patch-manager/cdk run nag",
+    "security:scan": "npm --workspace @sql-patch-manager/cdk run security:scan"
+  },
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  }
+}

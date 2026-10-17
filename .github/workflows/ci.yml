@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, test, prod]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Static secret scan
+        run: npm run security:scan
+
+      - name: Documentation and diagram checks
+        run: npm run docs:verify
+
+      - name: CDK synth (${{ matrix.environment }})
+        run: npm --workspace @sql-patch-manager/cdk exec cdk -- synth --context environment=${{ matrix.environment }}
+
+      - name: CDK Nag (${{ matrix.environment }})
+        run: npm --workspace @sql-patch-manager/cdk exec cdk -- synth --context environment=${{ matrix.environment }} --context runNag=true
+
+      # Deliberately no AWS credentials, bootstrap, diff, deploy, DB connection,
+      # or SQL execution in the Phase 2 verification job.

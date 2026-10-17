@@ -14,6 +14,8 @@
 
 ## 2. 認証・認可
 
+個人開発用既定値ではCognito Essentialsを使用する。MFA、強固なパスワードポリシー、JWTのissuer/audience/有効期限検証、`sub`ベースのAPI認可は維持する。社内導入・実データ利用時はCognito Plus/Threat Protectionを有効化するか、IdP側の同等機能を再評価する。
+
 - Cognito User Poolで認証し、API Gateway JWT Authorizerでトークン署名・issuer・audience・有効期限を検証する。
 - 利用者IDはメールアドレスではなく、トークンの不変な `sub` を使用する。表示名・メールは監査補助情報として扱い、認可判定に使わない。
 - `ownerSub`、`approverSub`、`environment`、`revision`、状態、操作対象をDynamoDBから取得し、LambdaがAPIごとに認可する。
@@ -48,8 +50,8 @@ CodeBuild実行ロールはS3キーをprefixとVersionIdの両方で制限し、
 ### 暗号化
 
 - 推奨本番基準は環境別のcustomer managed KMS keyによるSSE-KMS。KMS key policyはS3、CodeBuild、Lambdaの用途別に分離し、キーユーザーとキーユースを分ける。
-- 個人開発でデータが完全にダミーの場合のみ、コスト優先のSSE-S3を設定で選べる。ただし、設計を社内導入へ持ち込む場合はSSE-KMSへ切り替える。
-- DynamoDB、CloudWatch Logs、Secrets Managerもサービス側暗号化を有効化し、アプリログには本文・Secret値・接続文字列を出さない。
+- 個人開発用既定値はダミーデータ限定のSSE-S3とする。社内導入・実データ利用前にSSE-KMSへ切り替え、KMS権限を再レビューする。
+- DynamoDB、CloudWatch Logs、Secrets Managerもサービス側暗号化を有効化し、アプリログには本文・Secret値・接続文字列を出さない。個人開発用既定値ではDynamoDB PITRとVPC Flow Logsを無効化し、社内導入前に有効化する。
 
 ### 完全性
 

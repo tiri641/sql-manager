@@ -62,7 +62,7 @@ CDKで環境別の安全なAWS基盤を作り、アプリからSQL本文を直�
 
 ### 実装対象
 
-CDK(TypeScript)、CloudFront/S3 OAC、Cognito、API Gateway、Lambda骨格、DynamoDB、SQL/Log S3、KMS、VPC/Private Subnet、RDSダミー、Security Group、VPC Endpoint、CodeBuildプロジェクト、Secrets Manager、CloudWatchメトリクス、Budgets。
+CDK(TypeScript)、CloudFront/S3 OAC、Cognito、API Gateway、Lambda骨格、DynamoDB、SQL/Log S3、KMS、VPC/Private Subnet、RDSダミー定義、Security Group、VPC Endpoint、Fail-Closed CodeBuildプロジェクト、Secrets Manager参照境界、APIアクセスログ、Budgets。SQL実行権限、標準ビルドログ、実行結果Put権限はPhase 3の対象とする。
 
 ### 依存関係
 
@@ -70,22 +70,22 @@ Phase 1完了、AWSアカウント/リージョン、料金上限、ダミーDB�
 
 ### 作業手順
 
-1. devのみをCDK synth/deploy対象とし、contextで環境設定を外出しする。
+1. dev/test/prod相当のCDK synth対象を定義し、`context`には秘密情報や実アカウント情報を入れない。Phase 2ではdeploy/bootstrapを行わない。
 2. IAMとS3/KMSポリシーを先に実装し、公開・過剰権限テストを追加する。
-3. VPC、RDS、Endpoint、CodeBuildの接続をダミー環境で確認する。
-4. testへ昇格し、アカウント分離方式を検証する。
+3. VPC、RDS、Endpoint、CodeBuildのテンプレート境界をAssertionsで確認する。実ネットワーク接続はPhase 3以降のデプロイ後検証とする。
+4. test/prod相当の外部RDS設定とKMS設定が合成可能であることを確認する。実アカウント分離は社内導入時に決定する。
 
 ### 完了条件
 
-CDK synth、cdk-nag、AWS Config相当、セキュリティグループ・Endpoint・暗号化・Backupの検査が通り、ダミー環境だけが存在する。
+CDK synth、cdk-nag、CloudFormation Assertions、セキュリティグループ・Endpoint・暗号化・Backupの検査が通り、AWSリソースを作成していない。
 
 ### テスト項目
 
-IAM Policy Simulator、S3公開拒否、署名URL、KMS権限、RDS SG接続、CodeBuild VPC、Secret取得、バックアップ復元、コスト上限。
+IAMポリシー検査、S3公開拒否、KMS権限、RDS SG、CodeBuild VPC、Fail-Closed設定、標準ログ無効、Phase 2でのSQL/Log S3・DynamoDB・Secret権限なし、バックアップ設定、コスト上限のテンプレート検査。署名URL、Secret取得、バックアップ復元、実接続は後続Phase。
 
 ### リスク
 
-NAT/Endpoint不足、RDS料金、KMSキー削除、誤った環境接続、CDK contextの機密値混入。
+NAT/Endpoint不足、RDS料金、KMSキー削除、誤った環境接続、CDK contextの機密値混入、外部RDSの所有境界誤認。
 
 ### Codexに依頼する単位
 
@@ -234,4 +234,3 @@ Phase 5の受入、社内セキュリティ・法務・DBA・業務オーナー�
 ## 7. 初回リリースGate
 
 初回リリースはFR-01〜FR-15、10画面、4構成図、ログ・監査・Rollback・状態不明・復旧手順をすべて含む。段階的実装は許可するが、いずれかの必須機能を「将来対応」として省略した状態ではリリースしない。
-

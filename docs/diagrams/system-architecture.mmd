@@ -15,8 +15,8 @@ flowchart LR
     subgraph Control[コントロールプレーン]
         APIGW[API Gateway<br/>JWT Authorizer]
         API[Lambda API<br/>認可・状態遷移]
-        Dispatcher[Lambda Dispatcher / Reconciler]
-        EB[Amazon EventBridge<br/>Scheduler / retry rule]
+        Dispatcher[Lambda Dispatcher / Reconciler<br/>Phase 3 planned / not provisioned]
+        EB[Amazon EventBridge<br/>Phase 3 planned / not provisioned<br/>定期確認・起動漏れ検知のみ]
         DDB[DynamoDB<br/>Patch / File / Execution / Approval / Audit / Outbox]
         SQLS3[S3 SQLバケット<br/>非公開・Versioning・暗号化]
         LogS3[S3 Logバケット<br/>非公開・Versioning・暗号化]
@@ -24,8 +24,8 @@ flowchart LR
     end
 
     subgraph Execution[実行境界: 環境ごとに分離]
-        CB[CodeBuild managed service<br/>VPC build ENI・環境別IAMロール]
-        Secret[Secrets Manager<br/>環境別DB Secret]
+        CB[CodeBuild managed service<br/>Phase 2: Fail-Closed / SQL runnerはPhase 3 planned<br/>VPC build ENI・環境別IAMロール]
+        Secret[Secrets Manager<br/>Phase 3 planned: 環境別DB Secret]
         RDS[(RDS for PostgreSQL<br/>Private Subnet)]
         Guard[実行ガード / DB実行台帳<br/>条件付き更新]
     end
@@ -42,18 +42,18 @@ flowchart LR
     API -->|短期GET署名URL| React
     React -->|API発行の短期GET URLで取得| LogS3
     API -->|Execution + OutboxをTransactWriteItems| DDB
-    EB -->|定期起動・再試行| Dispatcher
+    EB -->|定期確認・起動漏れ検知<br/>SQL再実行なし| Dispatcher
     DDB -->|Outbox poll + 条件付きlease| Dispatcher
     Dispatcher -->|StartBuild + idempotency token| CB
     Dispatcher -->|状態・リース・監査| DDB
-    CB -->|VersionId指定取得| SQLS3
-    CB -->|Secret取得| Secret
-    CB -->|条件付きguard| Guard
-    CB -->|TLS 5432 / SQL実行| RDS
-    CB -->|結果ログ新規キーPut| LogS3
-    CB -->|実行状態・結果キー| DDB
-    SQLS3 -.->|SSE-KMS| KMS
-    LogS3 -.->|SSE-KMS| KMS
+    CB -->|Phase 3 planned: VersionId指定取得| SQLS3
+    CB -->|Phase 3 planned: Secret取得| Secret
+    CB -->|Phase 3 planned: 条件付きguard| Guard
+    CB -->|Phase 3 planned: TLS 5432 / SQL実行| RDS
+    CB -->|Phase 3 planned: 結果ログ新規キーPut| LogS3
+    CB -->|Phase 3 planned: 実行状態・結果キー| DDB
+    SQLS3 -.->|SSE-S3 / 社内導入時SSE-KMS| KMS
+    LogS3 -.->|SSE-S3 / 社内導入時SSE-KMS| KMS
 
     classDef boundary fill:#eef5ff,stroke:#4c78a8,stroke-width:1px;
     classDef sensitive fill:#fff3e0,stroke:#cc7a00,stroke-width:1px;
