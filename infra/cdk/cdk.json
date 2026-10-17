@@ -1,0 +1,9 @@
+{
+  "app": "node dist/app.js",
+  "context": {
+    "environment": "dev",
+    "runNag": false,
+    "@aws-cdk/core:validateAgainstDefaultRules": true,
+    "@aws-cdk/core:defaultCrossStackReferences": "strong"
+  }
+}

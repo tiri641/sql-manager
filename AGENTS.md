@@ -5,9 +5,9 @@
 ## 1. プロジェクトの現在地
 
 - セッションをまたぐ作業では、開始時に `status.md`、`AGENTS.md`、`docs/engineering-loop.md`、`docs/adr/README.md` を読み、終了時に `status.md` を更新する。
-- 現在はPhase 1（詳細設計・構成図作成）である。
+- 現在はPhase 2（AWS基盤CDK実装・検証）である。
 - 既存の成果物は `docs/` にある。設計内容を変更する場合は、図・API・データモデル・運用設計との整合性を同時に確認する。
-- `apps/` と `infra/` は将来の配置であり、現Phaseではアプリケーションコード・AWS CDKコードを作成しない。
+- `apps/backend/` と `infra/cdk/` はPhase 2の基盤コード配置である。Phase 3のSQL実行・API実装やPhase 4のReact実装は先取りしない。
 - AWSリソースの作成、変更、削除、デプロイ、実DB接続、SQL実行は禁止する。ダミーDBを用いた将来のPhaseでも、明示的な依頼なしに実行しない。
 - SQL本文、実行ログ、Secret値、個人情報、会社機密をGit、DynamoDB、通常のアプリケーションログ、PR本文へ書き込まない。
 

@@ -5,10 +5,21 @@
 | 環境 | 用途 | DB | 承認 | 推奨分離 |
 | --- | --- | --- | --- | --- |
 | 開発 | 個人開発・単体/結合テスト | ダミーRDS PostgreSQL | 開発用承認者。自己承認は本番同様に禁止 | 個人アカウント内の専用VPC/SG/Secret |
-| 検証 | E2E、障害、負荷、権限テスト | 検証用ダミーDB | 検証グループ | 別アカウントまたは別VPC |
-| 本番 | 社内導入後の業務DB | 本番RDS | 厳格な環境グループ、職務分離 | 別AWSアカウント、別KMS、別IAM境界 |
+| 検証 | E2E、障害、負荷、権限テスト | 個人開発は外部参照のみ。必要時に別途検証用DBを用意 | 検証グループ | 別アカウントまたは別VPC |
+| 本番 | 社内導入後の業務DB | 社内導入時の本番RDS | 厳格な環境グループ、職務分離 | 別AWSアカウント、別KMS、別IAM境界 |
 
 環境ごとにCodeBuildプロジェクト、実行IAMロール、DB Secret、DB SG、RDS endpoint、許可SQLポリシーを持つ。環境選択はクライアントの文字列を信頼せず、サーバー側の環境設定を参照する。
+
+### Phase 2の運用境界
+
+Phase 2では、CDKテンプレートを合成・検査するだけで、`cdk bootstrap`、`cdk deploy`、AWSリソース作成、RDS接続、SQL実行は行わない。初回deploy前には、対象アカウント・リージョン、Budget通知先、削除・復旧方針、外部RDS接続、Secret rotation、CloudFront証明書を別Gateで確認する。
+
+### CloudFront・Cognitoのdeploy前後Gate
+
+1. 個人開発ではCognito Essentialsを使用する。社内導入・実データ利用前に、Cognito Plusの料金上限とThreat Protection要件を承認する。
+2. CloudFront用ACM証明書が`us-east-1`にあり、`UiDomainName`が証明書のSANに含まれることを確認する。`UiCertificateArn`と`UiDomainName`の実値はリポジトリへ保存しない。
+3. 初回deploy後にCloudFront Distribution IDを確認し、KMS Key policyのCloudFront Source ARNがDistribution IDだけを許可していることを確認する。CDKが初回循環依存回避のため生成した`distribution/*`ワイルドカードを残したまま本番利用しない。
+4. 社外公開または機密UIを許可する前に、CloudFront WAF、Geo restriction、レート制限、ログ保持を再評価し、必要な構成を別レビューで承認する。
 
 ## 2. 監視とアラーム
 
@@ -51,7 +62,7 @@ dry-runは成功扱いにせず、接続が残っていないか、ロック、�
 
 - RDS automated backup、保持期間、PITR、手動スナップショット、復元先、復元テスト頻度を環境ごとに設定する。
 - S3 SQL/LogはVersioning、Lifecycle、必要ならObject Lock/法的保持を設定する。復元テストでVersionId・KMS権限も確認する。
-- DynamoDBはPoint-in-Time Recoveryを有効化し、Audit/Approval/Executionの復元整合性を検証する。
+- 個人開発用既定値ではDynamoDBのPoint-in-Time Recoveryを無効化する。社内導入時は有効化し、Audit/Approval/Executionの復元整合性を検証する。
 - Cognito、KMS、Secrets Managerの復旧手順と、BreakGlassの保管を別文書で管理する。
 - RTO/RPOは本番業務オーナーと決める。SQLロールバックの成功をRPO/RTOの代替にしない。
 
@@ -61,8 +72,8 @@ dry-runは成功扱いにせず、接続が残っていないか、ロック、�
 
 | データ | 開発 | 検証 | 本番候補 |
 | --- | --- | --- | --- |
-| SQL非現行Version | 30日 | 90日 | 規程・法的保持に従う |
-| 実行Log | 30日 | 90日 | 1年以上を候補に業務・法務確認 |
+| SQL非現行Version | 30日 | 30日 | 規程・法的保持に従う |
+| 実行Log | 30日 | 30日 | 1年以上を候補に業務・法務確認 |
 | Execution/Approval | 90日 | 1年 | 監査規程に従う |
 | Audit | 1年 | 1年以上 | 改ざん防止・法的保持に従う |
 | 失敗アップロード | 7日 | 30日 | 監査・調査後に削除 |
@@ -90,4 +101,3 @@ Phase 2以降は次をCIの設計Gateにする。
 3. CDKコンテキストから環境名・CodeBuildプロジェクト・Secret ARN・S3 bucket・VPC Endpointを抽出し、構成図のモデルと比較する。
 4. APIの状態遷移テスト、DynamoDB条件式テスト、CodeBuildのログ設定テストを実行する。
 5. 構成図ソースを変更したらPNGを再生成し、差分レビューを必須にする。
-

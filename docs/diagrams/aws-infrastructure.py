@@ -50,7 +50,7 @@ with Diagram(
         patch_table = Dynamodb("DynamoDB\nPatch/File/Execution/Approval/Audit/Outbox")
         sql_bucket = S3("SQL bucket\nVersioning + SSE")
         log_bucket = S3("Log bucket\nVersioning + SSE")
-        kms = KMS("KMS\n環境別キー")
+        kms = KMS("KMS\n社内導入時のみ")
         iam = IAM("IAM\n最小権限・環境境界")
 
     cloudfront >> Edge(label="OAC") >> ui_bucket
@@ -87,25 +87,25 @@ with Diagram(
             test_private = PrivateSubnet("Private Subnets")
             test_vpc = VPC("VPC")
             test_secret = SecretsManager("Secret-test")
-            test_db = RDS("RDS PostgreSQL-test")
             test_endpoint = Endpoint("S3/DDB Gateway\nSecrets Manager Interface")
             test_build >> Edge(label="Secret") >> test_secret
             test_build >> Edge(label="S3/DDB") >> test_endpoint
             test_private >> test_vpc
-        test_build >> Edge(label="VPC build ENI / TLS 5432") >> test_db
+        test_db = RDS("外部RDS-test\n別管理・別VPC等\nPhase 3接続方式未確定")
+        test_build >> Edge(label="将来の承認済みPrivate接続") >> test_db
 
     with Cluster("Production environment\nProduction account推奨"):
         prod_build = Codebuild("CodeBuild-prod managed service\nVPC build ENI・厳格なIAM role")
         with Cluster("VPC: prod-execution-vpc"):
-            prod_private = PrivateSubnet("Private Subnets\nMulti-AZ")
+            prod_private = PrivateSubnet("Private Subnet\n個人開発: 1 AZ")
             prod_vpc = VPC("VPC")
             prod_secret = SecretsManager("Secret-prod")
-            prod_db = RDS("RDS PostgreSQL-prod\nPrivate Subnet")
             prod_endpoint = Endpoint("S3/DDB Gateway\nSecrets Manager Interface")
             prod_build >> Edge(label="Secret") >> prod_secret
             prod_build >> Edge(label="S3/DDB") >> prod_endpoint
             prod_private >> prod_vpc
-        prod_build >> Edge(label="VPC build ENI / TLS 5432") >> prod_db
+        prod_db = RDS("外部RDS-prod\n別管理・別VPC等\nPhase 3接続方式未確定")
+        prod_build >> Edge(label="将来の厳格なPrivate接続") >> prod_db
 
     dispatcher >> Edge(label="環境別AssumeRoleまたは同一アカウント権限") >> dev_build
     dispatcher >> Edge(label="環境別AssumeRole") >> test_build

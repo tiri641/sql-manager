@@ -11,7 +11,7 @@
 | コンポーネント | 責務 | SQL本文の扱い |
 | --- | --- | --- |
 | React / CloudFront / S3 | 画面配信、S3署名URLへのアップロード、API呼び出し | ブラウザ上だけで扱い、APIログへ送らない |
-| Cognito | ユーザー認証、グループ・属性の発行 | 本文を扱わない |
+| Cognito | ユーザー認証、グループ・属性の発行、MFA。個人開発はEssentials、社内導入時はPlus/Threat Protectionを選択 | 本文を扱わない |
 | API Gateway / API Lambda | API入力検証、申請単位の認可、署名URL発行、状態遷移 | リクエスト本文にSQLを含めない |
 | DynamoDB | Patch、Revision、File metadata、Execution、Approval、Audit、Outbox | 本文を保存しない。SHA-256・VersionIdのみ |
 | SQL S3 | SQLオブジェクトの暗号化保存、Versioning、保持・削除制御 | 本文を保存 |
@@ -38,6 +38,8 @@
 ### 4.1 配置
 
 - CloudFront、S3、Cognito、API Gateway、DynamoDB、EventBridge、Secrets ManagerはAWSマネージドサービスとして利用する。
+- 個人開発用既定値ではCognito `FeaturePlan.ESSENTIALS`を使用する。社内導入・実データ利用時は`FeaturePlan.PLUS`とThreat Protectionを再評価する。
+- CloudFrontのACM証明書ARNとAlternate Domain Nameはdeploy時パラメータで与え、`UiDomainName`を証明書のSANと一致させる。実値はリポジトリやcontextへ保存しない。
 - API LambdaはDB接続を行わないため、初期案ではVPCへ入れない。これによりLambdaのNAT経由を避ける。
 - CodeBuild自体はAWSマネージドサービスであり、ビルド実行時のVPC build ENIを環境ごとの専用VPCのPrivate Subnetへ作成する。RDSもPrivate Subnetに置く。構成図ではCodeBuildサービスとVPC内の到達経路を混同しないように表記する。
 - CodeBuild用Security GroupからRDS用Security GroupのTCP 5432へのみ到達可能にする。RDS側のInboundはCodeBuild SGをソースとし、CIDRを直接許可しない。
@@ -51,7 +53,7 @@
 | Internet Gateway / Public Subnet | 実行VPCでは不採用 | CodeBuildとRDSを公開しない。CloudFrontのエッジ通信はVPC内経路ではない |
 | S3 Gateway Endpoint | 採用 | SQL・ログのS3アクセスをAWSネットワーク内に閉じ、Gateway Endpointは通常Interface Endpointよりコストを抑えやすい |
 | DynamoDB Gateway Endpoint | 採用 | CodeBuild側の実行ガード・結果メタデータ更新をAWSネットワーク内で行う |
-| Secrets Manager Interface Endpoint | 採用 | DB Secret取得に必要。Interface EndpointのAZ数と時間課金を受容する |
+| Secrets Manager Interface Endpoint | 採用 | DB Secret取得に必要。個人開発は1 AZ、社内導入は可用性要件に応じて2 AZ以上とする |
 | CodeBuild Interface Endpoint | 初期の実行コンテナには不要 | Dispatcher LambdaはVPC外からCodeBuild APIを呼ぶ。VPC内からCodeBuild APIを呼ぶ運用ツールを追加する場合に採用 |
 | CloudWatch Logs Interface Endpoint | CodeBuildでは不採用 | CodeBuildのCloudWatch Logsを無効化し、SQL出力は専用Log S3へ保存する。Lambdaの運用ログはLambdaサービス経由でCloudWatchへ送る |
 | STS Interface Endpoint | 初期案では不採用 | CodeBuildの実行ロール資格情報を直接使い、実行中のロールチェーンを行わない。採用する場合は追加する |
@@ -73,9 +75,26 @@ RDSはTLS接続をサポートし、IAM DB Authenticationも選択肢だが、DB
 
 ## 6. 環境分離
 
+### Phase 2 CDK実装境界
+
+Phase 2では、論理設計を以下のCDK Stackへ分割して定義する。これはCloudFormationテンプレートを合成するための実装であり、AWSアカウントへデプロイ済みであることを意味しない。
+
+| Stack | Phase 2の責務 | RDS/SQLの扱い |
+| --- | --- | --- |
+| `NetworkStack` | VPC、Private Isolated Subnet、Security Group、S3/DynamoDB Gateway Endpoint、Secrets Manager Interface Endpoint、条件付きVPC Flow Logs | DB接続なし |
+| `StorageStack` | UI、SQL、実行ログ、アクセスログの非公開S3、Versioning、SSE-S3（社内導入時SSE-KMS）、CloudFront OAC | SQL本文を実行しない |
+| `DatabaseStack` | devのダミーRDS定義、test/prodの外部Secret参照境界 | Phase 2では作成・接続しない |
+| `ControlPlaneStack` | Cognito、HTTP API JWT Authorizer、DynamoDB、Lambda骨格、APIアクセスログ | SQL本文・Secret値を扱わない |
+| `ExecutionStack` | 環境別CodeBuild、VPC build ENI、IAM、retry 0、同時実行1、Fail-Closed BuildSpec | Phase 3までSQL実行不可 |
+| `BudgetStack` | 環境別の月額Budget定義 | 通知先はdeploy前に設定 |
+
+個人開発用既定値は全環境SSE-S3、1 AZ、DynamoDB PITRなし、VPC Flow Logsなし、devのみ将来作成可能なダミーRDS、test/prodは外部RDS参照とする。社内導入時は環境設定でSSE-KMS、2 AZ以上、PITR、VPC Flow Logs、Cognito Plus/Threat Protectionへ切り替える。CloudFront/S3アクセス監査ログ専用バケットは配信互換性のためSSE-S3とし、SQL本文・実行結果を保存しない。CloudFront証明書ARNとドメイン名はdeploy時パラメータで渡し、contextやリポジトリへ実値を保存しない。KMS + OACの初回ワイルドカードポリシーはCDKの循環依存回避による既知の例外であり、KMSを有効化する環境では初回deploy後にDistribution IDへ絞る。
+
+Phase 2の検証は`npm test`、`npm run typecheck`、`npm run build`、`npm run cdk:synth`、`npm run cdk:nag`、`npm run security:scan`で行う。`cdk bootstrap`、`cdk deploy`、実RDS接続、SQL実行はPhase 2の対象外である。
+
 ### 個人開発・検証
 
-コストを抑えるため単一AWSアカウント内に `dev`、`test`、`prod-like` のリソースを分けることを許容する。ただし、CodeBuildプロジェクト、IAMロール、Secret、Security Group、RDS、S3 prefix/bucket、DynamoDBの環境属性を分離し、本番DBは絶対に接続しない。
+コストを抑えるため単一AWSアカウント内に `dev`、`test`、`prod-like` のリソースを分けることを許容する。個人開発用のtest/prodは外部RDS参照境界だけを合成し、RDSを作成しない。ただし、CodeBuildプロジェクト、IAMロール、Secret、Security Group、RDS、S3 prefix/bucket、DynamoDBの環境属性を分離し、本番DBは絶対に接続しない。
 
 ### 社内導入
 

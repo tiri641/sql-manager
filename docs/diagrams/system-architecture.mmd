@@ -52,8 +52,8 @@ flowchart LR
     CB -->|TLS 5432 / SQL実行| RDS
     CB -->|結果ログ新規キーPut| LogS3
     CB -->|実行状態・結果キー| DDB
-    SQLS3 -.->|SSE-KMS| KMS
-    LogS3 -.->|SSE-KMS| KMS
+    SQLS3 -.->|SSE-S3 / 社内導入時SSE-KMS| KMS
+    LogS3 -.->|SSE-S3 / 社内導入時SSE-KMS| KMS
 
     classDef boundary fill:#eef5ff,stroke:#4c78a8,stroke-width:1px;
     classDef sensitive fill:#fff3e0,stroke:#cc7a00,stroke-width:1px;

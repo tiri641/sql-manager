@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-test/
+cdk.out/
+.cache/
+*.tsbuildinfo
+coverage/
+.DS_Store

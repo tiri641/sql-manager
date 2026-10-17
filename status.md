@@ -5,67 +5,79 @@
 
 ## Current phase
 
-**Phase 1: 詳細設計・構成図・開発プロセス整備**
+**Phase 2: AWS基盤CDK実装・検証**
 
-アプリケーション実装、CDK実装、AWSリソース操作、実DB接続、SQL実行はまだ開始していない。
+CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装した。`cdk bootstrap`、`cdk deploy`、AWSリソース作成、実RDS接続、SQL実行は行っていない。
 
 ## Completed
 
-- SQL Patch Managerの日本語詳細設計書を作成
-- システム、AWSインフラ、SQL実行フロー、アクセス制御の図ソースを作成
-- `AGENTS.md` にTDD、セキュリティ、レビュー、SRE、Platform、引き渡しルールを追加
-- ループエンジニアリング運用、設計・PRレビュー基準、PRテンプレートを作成
-- `.github/agents/` に12役割のレビューエージェントを作成
-- Planモードのレビュー・修正・提示Gateと記録テンプレートを作成
-- Plan承認後の自動実行ポリシーを追加
-- `CONTRIBUTING.md`、`SECURITY.md`、`CODEOWNERS`を作成
-- ADR運用、テンプレート、初期ADR-0001/0002を作成
-- GitHubリポジトリを読み取り取得し、空リポジトリであることを確認
-- Phase 1設計をTech Lead、Security、Infrastructure、Database、SRE、Platform、Quality観点でレビューし、指摘を修正
-- AWSインフラ構成図PNGを生成・目視確認し、ADR-0003でCodeBuildとVPC build ENIの境界を明確化
-- リリースチェックリストを作成
-- PRをPhase単位で作成し、Phase間の変更混在を禁止する開発フローを追加
-- Phase 1成果物を`phase/1-design`へCommit・Pushし、[Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)を作成
-- READMEから主要な開発ルール・設計書・エージェントへリンク
+- Phase 1の設計・開発プロセス・レビュー基盤を確認
+- `phase/2-infra-cdk`ブランチをPhase 1成果物から作成
+- npm workspace、TypeScript、Node.js 24系、lockfileを追加
+- `NetworkStack`を追加（個人開発用1 AZのPrivate Isolated Subnet、NATなし、S3/DynamoDB Gateway、1 AZのSecrets Manager Interface、Security Group。VPC Flow Logsは本番強化設定で有効化）
+- `StorageStack`を追加（UI/SQL/実行ログ/アクセスログS3、Versioning、Block Public Access、個人開発用SSE-S3。社内導入時はSSE-KMSへ切替可能、CloudFront OAC、TLS証明書パラメータ）
+- `DatabaseStack`を追加（devダミーRDS定義、test/prod外部Secret参照、Private RDS、バックアップ）
+- `ControlPlaneStack`を追加（Cognito Essentials、MFA、強固なパスワードポリシー、HTTP API JWT Authorizer、DynamoDB GSI。PITRは本番強化設定で有効化、Lambda骨格、APIアクセスログ）
+- `ExecutionStack`を追加（環境別CodeBuild、VPC build ENI、同時実行1、自動再試行0、CloudWatch Logs無効、Fail-Closed BuildSpec、環境別IAM）
+- `BudgetStack`を追加（個人開発用Budget: dev 35 USD、test/prod各15 USD。通知用しきい値であり請求上限ではない）
+- 個人開発向け低コスト環境プロファイルを追加（[ADR-0006](docs/adr/0006-cost-conscious-learning-profile.md)）
+- CDK警告を是正（Cognito Threat Protection、CloudFront `UiDomainName`、KMS OAC既知警告の承認、EC23判定不能の根拠付き抑制、CloudFront WAF/Geoの公開前ゲート化）
+- `diagrams` + Graphvizで現行AWS構成図PNGを再生成し、目視確認
+- TDDテストを追加し、環境設定、ネットワーク、S3、RDS、Cognito、DynamoDB、CodeBuild、Budgetの境界を検証
+- GitHub Actions CIを追加（AWS認証・deployなし）
+- ADR-0004、Phase 2 Planレビュー記録、Phase 2設計境界を追加
+- README、AGENTS、architecture、operations、implementation-planをPhase 2向けに更新
 
 ## In progress
 
-- [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)のレビューとPhase 1成果物のユーザー承認待ち
+- Phase 2の低コスト環境プロファイル反映、検証、役割別レビューは完了
+- GitHub upstreamを再取得し、`phase/2-infra-cdk`ブランチ上で最終Diffレビュー、修正、再検証、ローカルコミット（`6742480`）まで完了
+- PushとPR作成はGitHub CLI認証更新待ち
 
 ## Next actions
 
-1. 次のセッション開始時に、このファイル、`AGENTS.md`、`docs/engineering-loop.md`、`docs/adr/README.md`を読む。
-2. [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)のレビュー結果を確認し、Phase 1成果物を承認する。
-3. Open Questions（IdP、承認者割当、DDL/ロック、保持期間、アカウント分離、DB実行台帳、IAM DB Authentication）を対応するPhaseの決定ゲートとして管理する。
-4. Phase 1 PRの承認・マージ後、Phase 2実装Planを作成し、Plan Review Gateでレビュー・修正・再レビューしてから提示する。
+1. GitHub CLIを再認証し、`phase/2-infra-cdk`をPushして`[Phase 2] AWS基盤CDK実装・検証`のPRを作成する。
+2. PR承認・マージ後にPhase 3のPlan Review Gateへ進む。
 
 ## Blockers / limitations
 
-- GitHubリポジトリ取得時点では空だったため、初期`main`コミットとPhase 1用`phase/1-design`ブランチを作成した。既存ソース・テスト・GitHub Actionsはない。
-- 現Workspaceの`.git`は空の読み取り専用メタデータのため、Git操作は取得済みcloneを使用している。
-- Mermaid CLIの完全描画はChromium sandbox制約で未完了。Mermaidの静的構造検査とAWSインフラPNG生成は成功している。
-- `.agents/` は実行環境側で読み取り専用のため、役割定義は`.github/agents/`へ配置した。
+- Workspaceの`.git`は読み取り専用の空ディレクトリのため、現在のGit操作は取得済みupstreamのGitディレクトリを明示指定している。コミット・Push・PR操作時も同じGitディレクトリを使う。
+- GitHub CLIの`tiri641`認証トークンが無効で、Push/PR作成を実行できない。`gh auth login -h github.com`によるユーザー再認証が必要。
+- `npm audit`のオンラインアドバイザリ取得はDNS制限で確認できなかった。依存導入時のオフライン監査結果は0 vulnerabilitiesだが、ネットワーク復旧後に再確認する。
+- 社内導入・実データ利用前に、Cognito Plus/Threat Protection、SSE-KMS、PITR、VPC Flow Logs、2 AZ以上、ACM証明書と`UiDomainName`のSAN一致、初回deploy後のKMS OACポリシー絞り込み、CloudFront WAF/Geo restrictionを再承認する。
+- Phase 2では実AWSの接続、料金、バックアップ復元、Secret rotation、外部RDSネットワークを検証していない。
 
 ## Active decisions
 
 - [ADR-0001](docs/adr/0001-codebuild-vpc-execution.md): CodeBuildをPrivate SubnetからRDSへ接続し、NAT Gatewayを標準採用しない。
 - [ADR-0002](docs/adr/0002-outbox-and-execution-guard.md): Outbox、条件付き更新、CodeBuild側実行ガードで二重実行を防ぐ。
-- [ADR-0003](docs/adr/0003-codebuild-vpc-build-eni.md): CodeBuildマネージドサービスとVPC build ENIの境界を明確化する（ADR-0001をAmend）。
-- [ADRテンプレート](docs/adr/0000-template.md): 重要な設計判断は既存ADRを書き換えず、新しいADRで記録する。
+- [ADR-0003](docs/adr/0003-codebuild-vpc-build-eni.md): CodeBuildマネージドサービスとVPC build ENIの境界を明確化する。
+- [ADR-0004](docs/adr/0004-phase2-cdk-environment-boundary.md): Phase 2はCDK実装・検証のみ。devダミーRDS、test/prod外部RDS、SSE-S3/SSE-KMS、deploy禁止を採用する。
+- [ADR-0005](docs/adr/0005-phase2-security-warning-remediation.md): Cognito Threat Protection、CloudFrontパラメータ、KMS OAC初回例外、cdk-nag抑制の根拠を定める。
+- [ADR-0006](docs/adr/0006-cost-conscious-learning-profile.md): 個人開発の全環境を低コスト既定値にし、本番強化を設定で切り替える。
 
 ## Validation evidence
 
-- Python AST/構文検査: 成功
-- Mermaidヘッダー、subgraph/end対応、静的構造検査: 成功
-- 設計書・エージェント定義・READMEリンク検査: 成功
-- PlanモードレビューGate、テンプレート、関連リンク検査: 成功
-- 秘密情報パターン検査: 問題なし
-- `diagrams`/GraphvizによるAWSインフラPNG生成: 成功、目視確認済み
-- Mermaid静的構造検査: 成功。CLI完全描画: Chromium sandbox制約で未完了
-- GitHubリポジトリ取得: 成功。ただし空リポジトリ
-- GitHub Push: `main`、`phase/1-design`ともに成功
-- GitHub PR: [Phase 1 PR #1](https://github.com/tiri641/sql-manager/pull/1)を作成済み
+- `npm run lint`: 成功
+- `npm run typecheck`: 成功
+- `npm test`: 成功（backend骨格、CDK設定・インフラAssertions）
+- `npm run build`: 成功
+- `npm run security:scan`: 成功
+- `npx cdk synth --context environment=dev`: 成功
+- `npx cdk synth --context environment=test`: 成功
+- `npx cdk synth --context environment=prod`: 成功
+- `npm run cdk:nag`: 成功。非推奨・CloudFrontドメイン・KMS OAC・EC23の警告なし。根拠付き抑制はINFOとして出力
+- `npx cdk synth --context environment=<dev|test|prod> --context runNag=true`: 3環境で成功。警告なし、根拠付き抑制はINFOとして出力
+- Mermaid構文の静的検査: 成功（3図、危険なscript/javascript/file URIなし）
+- `npm install --ignore-scripts --offline`: 成功、lockfileと依存関係を検証
+- `python3 docs/diagrams/aws-infrastructure.py`: 一時環境の`diagrams`/Graphvizで成功、PNG目視確認済み
+- `python3 -m ast docs/diagrams/aws-infrastructure.py`: 成功
+- `file docs/diagrams/aws-infrastructure.png`: PNG生成結果を確認（3141x4751、RGBA）
+- `docs/reviews/2026-10-17-phase2-cost-conscious.md`: 最終Diffを含む役割別レビュー。`PR_ALLOWED`、Blocking/High 0件
+- `git show --check HEAD`: 成功（`6742480`）
+- `cdk deploy` / `cdk bootstrap`: 未実行（Phase 2の禁止境界）
+- AWS API、RDS、SQL: 未実行
 
 ## Session handoff
 
-作業を再開するときは、まずこのファイルの `In progress`、`Next actions`、`Blockers / limitations` を確認し、完了した項目を更新する。設計判断を変更する場合は、関連文書を直接上書きする前にADRを追加または既存ADRとの関係を記録する。セッション終了時には、変更ファイル、検証結果、残存リスク、次の一手を更新する。
+次のセッションでは、まずこのファイル、`AGENTS.md`、`docs/engineering-loop.md`、`docs/adr/README.md`を読み、Phase 2 PRの状態を確認する。Phase 3へ進む前に、デプロイ対象アカウント、リージョン、Cognito Plus料金上限、ACM証明書とドメイン、初回deploy後のKMS OAC絞り込み、WAF/Geo、RDS所有境界、Secret rotation、DB実行台帳、CodeBuild実行イメージを決定する。
