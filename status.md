@@ -31,15 +31,15 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 ## In progress
 
 - Phase 2の低コスト環境プロファイル反映、検証、役割別レビューは完了
-- GitHub upstreamを再取得し、`phase/2-infra-cdk`の更新コミット`dd0789f`をPush済み。CodeBuildはL1 `CfnProject`、NO_SOURCE/NO_ARTIFACTS、標準ログ権限なしのFail-Closed境界
-- [PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)のPush済みHEADは`dd0789f`
-- `dd0789f`のGitHub Actions CIは実行中。ローカルではdev/test/prodのcdk-nagを再検証済み
-- Push後レビューで指摘されたCodeBuild VPC ENI IAM不足、Secrets Manager Endpointの到達範囲、Phase 3 planned表記を修正済み
-- 旧レビュー記録の`912624e`/`054d980`は履歴記録。`dd0789f`を対象に最終3観点レビューを実施し、結果を新しいレビュー記録へ保存する
+- GitHub upstreamを再取得し、`phase/2-infra-cdk`の更新コミット`440b3cf`をPush済み。CodeBuildはL1 `CfnProject`、NO_SOURCE/NO_ARTIFACTS、標準ログ権限なしのFail-Closed境界
+- [PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)のPush済みHEADは`440b3cf`
+- `440b3cf`のGitHub Actions CIは実行待ち。ローカルではdev/test/prodのcdk-nagを再検証済み
+- Push後レビューのCodeBuild VPC ENI IAM不足、Secrets Manager Endpointの到達範囲、Phase 3 planned表記を修正済み。VPC IAMはAWS公式CodeBuild例に合わせてDescribe/ENI権限とSubnet/AuthorizedService権限を分離した
+- 旧レビュー記録の`912624e`/`054d980`/`bd81a85`は履歴記録。`440b3cf`を対象に最終3観点レビューを実施し、結果を新しいレビュー記録へ保存する
 
 ## Next actions
 
-1. `dd0789f`のGitHub Actions CIと独立3観点レビューでBlocking/High 0件を確認する。
+1. `440b3cf`のGitHub Actions CIと独立3観点レビューでBlocking/High 0件を確認する。
 2. 最終レビュー証跡とstatusを更新する。
 3. 条件を満たしたらPR #2をマージし、Phase 3のPlan Review Gateへ進む。
 
@@ -83,8 +83,8 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 - `git diff --check`: 修正後の作業ツリーで成功
 - CodeBuild生成テンプレートにSQL/Log S3、DynamoDB、Secrets Managerのデータプレーン権限がないことを確認
 - 修正後のdev/test/prod `cdk synth`・`cdk-nag`: 成功。ERROR/WARNINGなし、根拠付きINFOのみ
-- GitHub Actions CI: `054d980`の`verify (dev)`, `verify (test)`, `verify (prod)`はPass。`dd0789f`は実行中
-- `054d980` Push後レビュー: Security/Infrastructure/PlatformはBlocking/High 0件。Tech Lead/Database/SRE、TDD/Quality/Releaseの指摘を`dd0789f`で修正
+- GitHub Actions CI: `054d980`の`verify (dev)`, `verify (test)`, `verify (prod)`はPass。`440b3cf`は実行待ち
+- `054d980`/`bd81a85` Push後レビュー: CodeBuildログ権限、Endpoint境界、VPC ENI IAMの指摘を確認し、`440b3cf`で修正。現HEADの最終レビューは未完了
 - `cdk deploy` / `cdk bootstrap`: 未実行（Phase 2の禁止境界）
 - AWS API、RDS、SQL: 未実行
 
