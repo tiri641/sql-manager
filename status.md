@@ -31,18 +31,18 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 ## In progress
 
 - Phase 2の低コスト環境プロファイル反映、検証、役割別レビューは完了
-- GitHub upstreamを再取得し、`phase/2-infra-cdk`ブランチ上で最終Diffレビュー、修正、再検証、ローカルコミット（`6742480`）まで完了
-- PushとPR作成はGitHub CLI認証更新待ち
+- GitHub upstreamを再取得し、`phase/2-infra-cdk`ブランチ上で最終Diffレビュー、修正、再検証、ローカルコミット（`812324d`）まで完了
+- Phase 2コミット（`812324d`）をPushし、[PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)を作成済み
 
 ## Next actions
 
-1. GitHub CLIを再認証し、`phase/2-infra-cdk`をPushして`[Phase 2] AWS基盤CDK実装・検証`のPRを作成する。
-2. PR承認・マージ後にPhase 3のPlan Review Gateへ進む。
+1. PR #2のレビュー・承認・マージを待つ。
+2. PRマージ後にPhase 3のPlan Review Gateへ進む。
 
 ## Blockers / limitations
 
 - Workspaceの`.git`は読み取り専用の空ディレクトリのため、現在のGit操作は取得済みupstreamのGitディレクトリを明示指定している。コミット・Push・PR操作時も同じGitディレクトリを使う。
-- GitHub CLIの`tiri641`認証トークンが無効で、Push/PR作成を実行できない。`gh auth login -h github.com`によるユーザー再認証が必要。
+- GitHub CLIの表示上の認証状態は再確認が必要だが、Git PushとPR作成は完了している。次回の外部操作前に認証状態を確認する。
 - `npm audit`のオンラインアドバイザリ取得はDNS制限で確認できなかった。依存導入時のオフライン監査結果は0 vulnerabilitiesだが、ネットワーク復旧後に再確認する。
 - 社内導入・実データ利用前に、Cognito Plus/Threat Protection、SSE-KMS、PITR、VPC Flow Logs、2 AZ以上、ACM証明書と`UiDomainName`のSAN一致、初回deploy後のKMS OACポリシー絞り込み、CloudFront WAF/Geo restrictionを再承認する。
 - Phase 2では実AWSの接続、料金、バックアップ復元、Secret rotation、外部RDSネットワークを検証していない。
@@ -74,10 +74,10 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 - `python3 -m ast docs/diagrams/aws-infrastructure.py`: 成功
 - `file docs/diagrams/aws-infrastructure.png`: PNG生成結果を確認（3141x4751、RGBA）
 - `docs/reviews/2026-10-17-phase2-cost-conscious.md`: 最終Diffを含む役割別レビュー。`PR_ALLOWED`、Blocking/High 0件
-- `git show --check HEAD`: 成功（`6742480`）
+- `git show --check HEAD`: 成功（`812324d`）
 - `cdk deploy` / `cdk bootstrap`: 未実行（Phase 2の禁止境界）
 - AWS API、RDS、SQL: 未実行
 
 ## Session handoff
 
-次のセッションでは、まずこのファイル、`AGENTS.md`、`docs/engineering-loop.md`、`docs/adr/README.md`を読み、Phase 2 PRの状態を確認する。Phase 3へ進む前に、デプロイ対象アカウント、リージョン、Cognito Plus料金上限、ACM証明書とドメイン、初回deploy後のKMS OAC絞り込み、WAF/Geo、RDS所有境界、Secret rotation、DB実行台帳、CodeBuild実行イメージを決定する。
+次のセッションでは、まずこのファイル、`AGENTS.md`、`docs/engineering-loop.md`、`docs/adr/README.md`を読み、[PR #2](https://github.com/tiri641/sql-manager/pull/2)のレビュー状態を確認する。Phase 3へ進む前に、デプロイ対象アカウント、リージョン、Cognito Plus料金上限、ACM証明書とドメイン、初回deploy後のKMS OAC絞り込み、WAF/Geo、RDS所有境界、Secret rotation、DB実行台帳、CodeBuild実行イメージを決定する。
