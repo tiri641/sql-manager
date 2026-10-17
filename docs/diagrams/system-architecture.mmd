@@ -24,8 +24,8 @@ flowchart LR
     end
 
     subgraph Execution[実行境界: 環境ごとに分離]
-        CB[CodeBuild managed service<br/>VPC build ENI・環境別IAMロール]
-        Secret[Secrets Manager<br/>環境別DB Secret]
+        CB[CodeBuild managed service<br/>Phase 2: Fail-Closed / SQL runnerはPhase 3 planned<br/>VPC build ENI・環境別IAMロール]
+        Secret[Secrets Manager<br/>Phase 3 planned: 環境別DB Secret]
         RDS[(RDS for PostgreSQL<br/>Private Subnet)]
         Guard[実行ガード / DB実行台帳<br/>条件付き更新]
     end
@@ -46,12 +46,12 @@ flowchart LR
     DDB -->|Outbox poll + 条件付きlease| Dispatcher
     Dispatcher -->|StartBuild + idempotency token| CB
     Dispatcher -->|状態・リース・監査| DDB
-    CB -->|VersionId指定取得| SQLS3
-    CB -->|Secret取得| Secret
-    CB -->|条件付きguard| Guard
-    CB -->|TLS 5432 / SQL実行| RDS
-    CB -->|結果ログ新規キーPut| LogS3
-    CB -->|実行状態・結果キー| DDB
+    CB -->|Phase 3 planned: VersionId指定取得| SQLS3
+    CB -->|Phase 3 planned: Secret取得| Secret
+    CB -->|Phase 3 planned: 条件付きguard| Guard
+    CB -->|Phase 3 planned: TLS 5432 / SQL実行| RDS
+    CB -->|Phase 3 planned: 結果ログ新規キーPut| LogS3
+    CB -->|Phase 3 planned: 実行状態・結果キー| DDB
     SQLS3 -.->|SSE-S3 / 社内導入時SSE-KMS| KMS
     LogS3 -.->|SSE-S3 / 社内導入時SSE-KMS| KMS
 

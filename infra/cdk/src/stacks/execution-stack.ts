@@ -93,7 +93,7 @@ export class ExecutionStack extends Stack {
         id: "AwsSolutions-IAM5",
         appliesTo: [
           "Resource::*",
-          "Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:network-interface/*",
+          `Resource::arn:<AWS::Partition>:ec2:${props.config.region}:<AWS::AccountId>:network-interface/*`,
         ],
         reason: "Phase 2 only grants CodeBuild VPC/service-integration permissions. The wildcard is required by AWS APIs and no SQL, Log S3, DynamoDB, or Secret data-plane permission is attached.",
       },
@@ -112,17 +112,34 @@ export class ExecutionStack extends Stack {
   }
 
   private addVpcNetworkInterfacePermissions(role: iam.Role, vpc: ec2.Vpc): void {
+    const isolatedSubnetArns = vpc
+      .selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED })
+      .subnetIds
+      .map((subnetId) => this.formatArn({ service: "ec2", resource: "subnet", resourceName: subnetId }));
+
     role.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["ec2:CreateNetworkInterface", "ec2:DeleteNetworkInterface", "ec2:DescribeNetworkInterfaces"],
+        actions: [
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeDhcpOptions",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeVpcs",
+        ],
         resources: ["*"],
         conditions: { StringEquals: { "ec2:Vpc": vpc.vpcId } },
       }),
     );
     role.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["ec2:DescribeSubnets", "ec2:DescribeSecurityGroups", "ec2:DescribeVpcs"],
-        resources: ["*"],
+        actions: ["ec2:CreateNetworkInterfacePermission"],
+        resources: [this.formatArn({ service: "ec2", resource: "network-interface", resourceName: "*" })],
+        conditions: {
+          StringEquals: { "ec2:AuthorizedService": "codebuild.amazonaws.com" },
+          ArnEquals: { "ec2:Subnet": isolatedSubnetArns },
+        },
       }),
     );
   }

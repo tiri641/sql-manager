@@ -104,6 +104,7 @@ export class NetworkStack extends Stack {
       subnets: [{ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }],
     });
     this.vpc.addInterfaceEndpoint("SecretsManagerInterfaceEndpoint", {
+      open: false,
       service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
       privateDnsEnabled: true,
       securityGroups: [this.endpointSecurityGroup],

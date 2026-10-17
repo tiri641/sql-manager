@@ -184,6 +184,10 @@ test("execution project is fail-closed and does not retry automatically", () => 
   assert.doesNotMatch(policies, /secretsmanager:GetSecretValue/);
   assert.doesNotMatch(policies, /logs:(CreateLogGroup|CreateLogStream|PutLogEvents)/);
   assert.doesNotMatch(policies, /kms:(Encrypt|Decrypt|GenerateDataKey)/);
+  assert.match(policies, /ec2:DescribeDhcpOptions/);
+  assert.match(policies, /ec2:CreateNetworkInterfacePermission/);
+  assert.match(policies, /ec2:AuthorizedService/);
+  assert.match(policies, /codebuild\.amazonaws\.com/);
 });
 
 test("phase 2 does not create a public API route for SQL operations", () => {

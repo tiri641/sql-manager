@@ -31,17 +31,17 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 ## In progress
 
 - Phase 2の低コスト環境プロファイル反映、検証、役割別レビューは完了
-- GitHub upstreamを再取得し、`phase/2-infra-cdk`のPR実装コミット（`812324d`）とCI記録コミット（最新Push済み`912624e`）を確認
-- [PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)は`912624e`が現在のPush済みHEAD。初回レビューの修正は作業ツリーにあり、まだ未コミット・未Push
-- PR #2のGitHub Actions CI（`912624e`のdev/test/prod）がすべてPass
-- PR #2最終DiffをTDD Test Engineer / Quality Engineer / Release Manager観点で再レビューし、[レビュー記録](docs/reviews/2026-10-17-phase2-pr2-tdd-quality-release.md)へ`CHANGES_REQUESTED`を記録。実装変更・Push・Mergeは未実施
-- 初回レビューのHigh/Blocking指摘を修正したローカルDiffを、TDD Test Engineer / Quality Engineer / Release Manager観点で再レビュー済み。CodeBuildはL1 `CfnProject`へ変更し、標準ログIAM権限も生成しない境界を追加した。修正後ローカルDiffはBlocking/High 0件だが、未コミット・未PushのためPR #2は`CHANGES_REQUESTED`
+- GitHub upstreamを再取得し、`phase/2-infra-cdk`の更新コミット`054d980`をPush済み。CodeBuildはL1 `CfnProject`、NO_SOURCE/NO_ARTIFACTS、標準ログ権限なしのFail-Closed境界
+- [PR #2 `[Phase 2] AWS基盤CDK実装・検証`](https://github.com/tiri641/sql-manager/pull/2)のPush済みHEADは`054d980`
+- `054d980`のGitHub Actions CI（dev/test/prod）はすべてPass
+- Push後の独立レビューで、CodeBuild VPC ENI IAMの不足（`DescribeDhcpOptions`、`CreateNetworkInterfacePermission`）とSecrets Manager Endpointの到達範囲を指摘された。修正は作業ツリーにあり、未コミット・未Push
+- 旧レビュー記録の`912624e`/`CHANGES_REQUESTED`は履歴記録。現HEAD向けの最終レビュー記録を追加し、修正後に再レビューする
 
 ## Next actions
 
-1. 修正後Diffをコミットし、PR #2の更新コミットをPushする。
-2. 更新後のGitHub Actions CIと同一3観点の再レビューを確認する。
-3. PR #2をマージ後、Phase 3のPlan Review Gateへ進む。
+1. VPC ENI IAM、Secrets Manager Endpoint、Phase 3 planned表記の修正をコミットし、PR #2へPushする。
+2. 更新後のGitHub Actions CIと独立3観点レビューでBlocking/High 0件を確認する。
+3. 最終レビュー証跡を更新後、PR #2をマージし、Phase 3のPlan Review Gateへ進む。
 
 ## Blockers / limitations
 
@@ -83,8 +83,8 @@ CDKコード、Lambda骨格、インフラテスト、synth、cdk-nagを実装�
 - `git diff --check`: 修正後の作業ツリーで成功
 - CodeBuild生成テンプレートにSQL/Log S3、DynamoDB、Secrets Managerのデータプレーン権限がないことを確認
 - 修正後のdev/test/prod `cdk synth`・`cdk-nag`: 成功。ERROR/WARNINGなし、根拠付きINFOのみ
-- GitHub Actions CI: `912624e`時点の`verify (dev)`, `verify (test)`, `verify (prod)`はPass。未コミット修正後DiffのGitHub CIは未実行
-- 修正後ローカルDiffの再レビュー: [レビュー記録](docs/reviews/2026-10-17-phase2-pr2-tdd-quality-release-rereview.md)。ローカルはBlocking/High 0件、PRは未反映のため`CHANGES_REQUESTED`
+- GitHub Actions CI: `054d980`の`verify (dev)`, `verify (test)`, `verify (prod)`はPass
+- `054d980` Push後レビュー: Security/Infrastructure/PlatformはBlocking/High 0件。Tech Lead/Database/SRE、TDD/Quality/ReleaseはVPC ENI IAMとレビュー証跡更新を指摘。修正後に再レビュー予定
 - `cdk deploy` / `cdk bootstrap`: 未実行（Phase 2の禁止境界）
 - AWS API、RDS、SQL: 未実行
 
