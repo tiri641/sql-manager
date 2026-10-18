@@ -93,7 +93,6 @@ const CONTEXT_PATH_ALLOWLIST = new Set([
   "scripts/create-context-manifest.mjs",
   "scripts/create-context-manifest.test.mjs",
   "scripts/verify-context-manifest.mjs",
-  "scripts/verify-context-manifest.test.mjs",
   "scripts/run-concise.mjs",
   "scripts/run-concise.test.mjs",
   "scripts/context-git.mjs",
