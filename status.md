@@ -14,7 +14,7 @@ Phase 2（AWS基盤CDK実装・検証）。PR #2は`main`へマージ済み。Ph
 
 ## In progress
 
-- コンテキスト最適化はPR前レビュー・PR作成・マージ待ち。
+- コンテキスト最適化のPre-PRレビューは完了（Blocking/High 0、Mediumは受容条件を記録）。PR作成・マージ待ち。
 
 ## Completed
 
@@ -25,12 +25,12 @@ Phase 2（AWS基盤CDK実装・検証）。PR #2は`main`へマージ済み。Ph
 - 明示的allowlist、symlink/path traversal/root外出力のfail-closed、manifestの行範囲・digest・Schema検証を追加。
 - `scripts/run-concise.mjs`でコマンド出力の行数・バイト数制限と一般的なcredentialパターンのマスクを追加。
 - TDD証跡は[こちら](docs/reviews/2026-10-18-context-harness-tdd-evidence.md)。最終レビュー判定は[こちら](docs/reviews/2026-10-18-context-harness-final-review.md)。Planレビュー記録は[こちら](docs/reviews/plan/2026-10-18-context-harness-review.md)。
+- Pre-PRレビュー判定は[こちら](docs/reviews/2026-10-18-context-harness-pre-pr-review.md)。
 
 ## Next actions
 
-1. Pre-PRエージェントレビューで最終Diffを確認する。
-2. レビューと検証が通ったら、コンテキスト最適化だけのPRを作成・マージする。
-3. マージ後にPhase 3のPlan Review Gateへ進む。Phase 3実装は別PRとする。
+1. コンテキスト最適化だけのPRを作成・マージする。
+2. マージ後にPhase 3のPlan Review Gateへ進む。Phase 3実装は別PRとする。
 
 ## Blockers / limitations
 
