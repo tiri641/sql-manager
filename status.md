@@ -41,7 +41,7 @@ Phase 2（AWS基盤CDK実装・検証）。PR #2は`main`へマージ済み。Ph
 ## Latest verification
 
 - `npm run agent:context:test`: 3 test files passed（manifest、context verifier、conciseのケース）。
-- `npm run agent:context:verify`: 分離worktreeで再実行予定。
+- `npm run agent:context:verify`: exit 0（AGENTS.md 42行、status.md 57行）。
 - Phase 2の既存テスト・synth検証は今回の変更範囲外であり、コンテキストPRでは既存CIに委ねる。
 
 ## Active decisions

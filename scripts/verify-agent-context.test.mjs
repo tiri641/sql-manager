@@ -82,7 +82,7 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
     required: ["version", "rules"],
     properties: {
       version: { const: 1 },
-      rules: { type: "array", items: { required: ["id", "canonicalPath", "scope", "priority", "when", "requiredSections", "validationRule", "allowedReferences", "overridePolicy"], properties: { overridePolicy: { enum: ["root-safety-non-overridable", "scoped-additive-only"] } } } }
+      rules: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "canonicalPath", "scope", "priority", "when", "requiredSections", "validationRule", "allowedReferences", "overridePolicy"], properties: { overridePolicy: { enum: ["root-safety-non-overridable", "scoped-additive-only"] } } } }
     }
   }, null, 2) + "\n");
   await writeFile(join(root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.json"), JSON.stringify({
@@ -131,6 +131,42 @@ test("rejects an invalid source-of-truth schema", async () => {
   const result = await analyzeContext(fixture.root);
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /source-of-truth schema/i);
+});
+
+test("rejects an open nested source-of-truth rule schema", async () => {
+  const fixture = await createFixture();
+  const schemaPath = join(fixture.root, "docs", "agent-rules", "source-of-truth.schema.json");
+  const schema = JSON.parse(await readFile(schemaPath, "utf8"));
+  schema.properties.rules.items.additionalProperties = true;
+  await writeFile(schemaPath, JSON.stringify(schema) + "\n");
+  const result = await analyzeContext(fixture.root);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /closed object/i);
+});
+
+test("rejects unknown source-of-truth rule fields", async () => {
+  const fixture = await createFixture();
+  const sourcePath = join(fixture.root, "docs", "agent-rules", "source-of-truth.json");
+  const source = JSON.parse(await readFile(sourcePath, "utf8"));
+  source.rules[0].unexpected = true;
+  await writeFile(sourcePath, JSON.stringify(source) + "\n");
+  const result = await analyzeContext(fixture.root);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /unknown field/i);
+});
+
+test("rejects broken status links and anchors", async () => {
+  const brokenTarget = await createFixture();
+  await writeFile(join(brokenTarget.root, "status.md"), brokenTarget.status.replace("docs/status-history/2026-10-18-status-pre-context-reduction.md", "docs/status-history/missing.md"));
+  const targetResult = await analyzeContext(brokenTarget.root);
+  assert.equal(targetResult.ok, false);
+  assert.match(targetResult.errors.join("\n"), /missing link target/i);
+
+  const brokenAnchor = await createFixture();
+  await writeFile(join(brokenAnchor.root, "status.md"), brokenAnchor.status.replace("docs/status-history/2026-10-18-status-pre-context-reduction.md", "docs/status-history/2026-10-18-status-pre-context-reduction.md#missing"));
+  const anchorResult = await analyzeContext(brokenAnchor.root);
+  assert.equal(anchorResult.ok, false);
+  assert.match(anchorResult.errors.join("\n"), /missing anchor/i);
 });
 
 test("rejects an incomplete status migration map", async () => {

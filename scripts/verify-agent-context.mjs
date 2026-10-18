@@ -200,6 +200,7 @@ async function verifySourceOfTruth(root, errors) {
   }
   const ruleSchema = schema.properties?.rules?.items;
   const ruleFields = ["id", "canonicalPath", "scope", "priority", "when", "requiredSections", "validationRule", "allowedReferences", "overridePolicy"];
+  if (ruleSchema?.type !== "object" || ruleSchema?.additionalProperties !== false) errors.push("source-of-truth rule schema must be a closed object");
   for (const field of ruleFields) if (!ruleSchema?.required?.includes(field)) errors.push(`source-of-truth schema missing rule field: ${field}`);
   if (manifest.version !== 1) errors.push("source-of-truth.version must be 1");
   if (!Array.isArray(manifest.rules) || manifest.rules.length === 0) {
@@ -208,6 +209,7 @@ async function verifySourceOfTruth(root, errors) {
   }
   const seen = new Set();
   for (const rule of manifest.rules) {
+    for (const field of Object.keys(rule)) if (!ruleFields.includes(field)) errors.push(`source-of-truth rule has unknown field: ${field}`);
     for (const field of ruleFields) {
       if (!(field in rule)) errors.push(`source-of-truth rule missing ${field}`);
     }

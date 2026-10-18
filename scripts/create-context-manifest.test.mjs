@@ -1,11 +1,27 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import { createManifest, writeManifest } from "./create-context-manifest.mjs";
 import { verifyManifest } from "./verify-context-manifest.mjs";
+
+const execFileAsync = promisify(execFile);
+
+async function createGitFixture() {
+  const root = await mkdtemp(join(tmpdir(), "sql-patch-manager-git-manifest-"));
+  await writeFile(join(root, "status.md"), "# Status\n", "utf8");
+  await execFileAsync("git", ["-C", root, "init", "-q"]);
+  await execFileAsync("git", ["-C", root, "config", "user.name", "Context Test"]);
+  await execFileAsync("git", ["-C", root, "config", "user.email", "context-test@example.invalid"]);
+  await execFileAsync("git", ["-C", root, "add", "status.md"]);
+  await execFileAsync("git", ["-C", root, "-c", "commit.gpgSign=false", "commit", "-m", "fixture"]);
+  const { stdout } = await execFileAsync("git", ["-C", root, "rev-parse", "HEAD"]);
+  return { root, head: stdout.trim() };
+}
 
 async function writeManifestSchema(root) {
   await mkdir(join(root, "docs", "agent-rules"), { recursive: true });
@@ -101,4 +117,25 @@ test("rejects an arbitrary revision when Git is unavailable", async () => {
     () => createManifest(root, { files: ["status.md:1-1"], revision: "FAKE-COMMIT" }),
     /revision must match Git HEAD/i
   );
+});
+
+test("requires the current Git HEAD and records clean state", async () => {
+  const fixture = await createGitFixture();
+  const manifest = await createManifest(fixture.root, { files: ["status.md:1-1"], revision: fixture.head });
+  assert.equal(manifest.revision, fixture.head);
+  assert.equal(manifest.dirty, false);
+  assert.equal(manifest.untracked, false);
+  await assert.rejects(
+    () => createManifest(fixture.root, { files: ["status.md:1-1"], revision: "0".repeat(40) }),
+    /revision must match Git HEAD/i
+  );
+});
+
+test("records dirty and untracked Git state in the manifest", async () => {
+  const fixture = await createGitFixture();
+  await writeFile(join(fixture.root, "status.md"), "# Changed\n", "utf8");
+  await writeFile(join(fixture.root, "notes.txt"), "untracked\n", "utf8");
+  const manifest = await createManifest(fixture.root, { files: ["status.md:1-1"], revision: fixture.head });
+  assert.equal(manifest.dirty, true);
+  assert.equal(manifest.untracked, true);
 });
