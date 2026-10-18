@@ -11,8 +11,8 @@
 
 - `npm run agent:context:test`: 3 test files passed（manifest 12、context verifier 14、concise 5のケース）。
 - `npm run agent:context:verify`: `AGENTS.md` 42行、`status.md` 57行で終了コード0。
-- 検証基準commitは`78477ecbb5cd020d27047cd86ecdf65a266aec66`。後続の証跡追記はmanifest対象ファイルを変更しない。
-- `node scripts/create-context-manifest.mjs --files AGENTS.md:1-42,status.md:1-57,docs/agent-rules/README.md:1-27 --revision 78477ecbb5cd020d27047cd86ecdf65a266aec66 > /tmp/sql-manager-context-manifest.json && node scripts/verify-context-manifest.mjs /tmp/sql-manager-context-manifest.json`: 3ファイルのdigest一致、終了コード0。
+- 検証基準commitは`4931b85bd622e07ea7d8cc12c730ae07481a46fd`。後続の証跡追記はmanifest対象ファイルを変更しない。
+- `node scripts/create-context-manifest.mjs --files AGENTS.md:1-42,status.md:1-57,docs/agent-rules/README.md:1-29 --revision 4931b85bd622e07ea7d8cc12c730ae07481a46fd > /tmp/sql-manager-context-manifest.json && node scripts/verify-context-manifest.mjs /tmp/sql-manager-context-manifest.json`: 3ファイルのdigest一致、終了コード0。
 
 ## Refactor / Verify
 
