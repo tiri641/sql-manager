@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "SAFE-NO-AWS-DB-SQL",
+      "canonicalPath": "AGENTS.md",
+      "scope": "/",
+      "priority": 0,
+      "when": "always",
+      "requiredSections": ["Safety invariants"],
+      "validationRule": "required-rule-id",
+      "allowedReferences": ["docs/security-design.md", "docs/adr/"],
+      "overridePolicy": "root-safety-non-overridable"
+    },
+    {
+      "id": "SAFE-NO-SENSITIVE-DATA",
+      "canonicalPath": "AGENTS.md",
+      "scope": "/",
+      "priority": 0,
+      "when": "always",
+      "requiredSections": ["Safety invariants"],
+      "validationRule": "required-rule-id",
+      "allowedReferences": ["docs/security-design.md"],
+      "overridePolicy": "root-safety-non-overridable"
+    },
+    {
+      "id": "SAFE-UNKNOWN-FAIL-CLOSED",
+      "canonicalPath": "AGENTS.md",
+      "scope": "/",
+      "priority": 0,
+      "when": "always",
+      "requiredSections": ["Safety invariants"],
+      "validationRule": "required-rule-id",
+      "allowedReferences": ["docs/security-design.md"],
+      "overridePolicy": "root-safety-non-overridable"
+    },
+    {
+      "id": "GATE-PLAN-REVIEW",
+      "canonicalPath": "docs/engineering-loop.md",
+      "scope": "/",
+      "priority": 1,
+      "when": "plan",
+      "requiredSections": ["Planモードのレビュー・提示Gate"],
+      "validationRule": "required-reference",
+      "allowedReferences": ["docs/reviews/plan/"],
+      "overridePolicy": "scoped-additive-only"
+    },
+    {
+      "id": "GATE-PRE-PR-REVIEW",
+      "canonicalPath": ".github/agents/README.md",
+      "scope": "/",
+      "priority": 2,
+      "when": "pr",
+      "requiredSections": ["PR作成前"],
+      "validationRule": "required-reference",
+      "allowedReferences": ["docs/reviews/"],
+      "overridePolicy": "scoped-additive-only"
+    },
+    {
+      "id": "STATE-STATUS-ADR",
+      "canonicalPath": "docs/engineering-loop.md",
+      "scope": "/",
+      "priority": 1,
+      "when": "always",
+      "requiredSections": ["セッション継続と設計判断"],
+      "validationRule": "required-reference",
+      "allowedReferences": ["status.md", "docs/adr/"],
+      "overridePolicy": "root-safety-non-overridable"
+    }
+  ]
+}

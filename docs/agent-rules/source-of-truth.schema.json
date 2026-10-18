@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "rules"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "canonicalPath", "scope", "priority", "when", "requiredSections", "validationRule", "allowedReferences", "overridePolicy"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z0-9-]+$" },
+          "canonicalPath": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+" },
+          "scope": { "type": "string", "pattern": "^/" },
+          "priority": { "type": "integer", "minimum": 0 },
+          "when": { "type": "string", "minLength": 1 },
+          "requiredSections": { "type": "array", "items": { "type": "string" } },
+          "validationRule": { "type": "string", "minLength": 1 },
+          "allowedReferences": { "type": "array", "items": { "type": "string" } },
+          "overridePolicy": { "enum": ["root-safety-non-overridable", "scoped-additive-only"] }
+        }
+      }
+    }
+  }
+}

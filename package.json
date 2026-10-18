@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "SQL Patch Manager infrastructure and backend workspace",
+  "packageManager": "npm@11.17.0",
   "workspaces": [
     "apps/backend",
     "infra/cdk"
@@ -13,6 +14,8 @@
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "docs:verify": "node scripts/verify-docs.mjs",
+    "agent:context:test": "node --test scripts/verify-agent-context.test.mjs scripts/create-context-manifest.test.mjs scripts/run-concise.test.mjs",
+    "agent:context:verify": "node scripts/verify-agent-context.mjs",
     "cdk:synth": "npm --workspace @sql-patch-manager/cdk run synth",
     "cdk:nag": "npm --workspace @sql-patch-manager/cdk run nag",
     "security:scan": "npm --workspace @sql-patch-manager/cdk run security:scan"
