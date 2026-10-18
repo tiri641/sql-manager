@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 
 import { createManifest, writeManifest } from "./create-context-manifest.mjs";
+import { readGitState } from "./context-git.mjs";
 import { verifyManifest } from "./verify-context-manifest.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -167,4 +168,19 @@ test("verifies Git HEAD and working tree metadata", async () => {
   const staleState = await verifyManifest(fixture.root, { ...manifest, dirty: false, untracked: false });
   assert.equal(staleState.ok, false);
   assert.match(staleState.errors.join("\n"), /dirty|untracked/i);
+});
+
+test("fails closed when Git status cannot be read", async () => {
+  const root = await mkdtemp(join(tmpdir(), "sql-patch-manager-git-status-failure-"));
+  const bin = await mkdtemp(join(tmpdir(), "sql-patch-manager-fake-git-"));
+  const fakeGit = join(bin, "git");
+  await writeFile(fakeGit, "#!/bin/sh\ncase \"$*\" in *\"rev-parse HEAD\"*) printf '%s\\n' 0000000000000000000000000000000000000000 ;; *) exit 1 ;; esac\n", "utf8");
+  await chmod(fakeGit, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${bin}:${originalPath ?? ""}`;
+  try {
+    await assert.rejects(() => readGitState(root), /Git status could not be verified/i);
+  } finally {
+    process.env.PATH = originalPath;
+  }
 });

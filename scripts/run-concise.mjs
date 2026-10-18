@@ -9,7 +9,7 @@ export const DEFAULT_MAX_BYTES = 12000;
 export function redactText(value) {
   return String(value)
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[REDACTED PRIVATE KEY]")
-    .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, "gh[REDACTED]")
+    .replace(/\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b/g, "gh[REDACTED]")
     .replace(/(AKIA|ASIA)[A-Z0-9]{16}/g, "$1[REDACTED]")
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, "$1[REDACTED]")
     .replace(/(postgres(?:ql)?:\/\/)[^\s]+/gi, "$1[REDACTED]")

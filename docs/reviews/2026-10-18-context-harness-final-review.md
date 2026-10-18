@@ -24,7 +24,7 @@ Blocking: 0 / High: 0
 
 ## Verification evidence
 
-- `npm run agent:context:test`: 3 test files passed（manifest 11、context verifier 14、concise 5）。
+- `npm run agent:context:test`: 3 test files passed（manifest 12、context verifier 14、concise 5）。
 - `npm run agent:context:verify`: exit 0（AGENTS.md 42行、status.md 57行）。
 - manifest生成・`node scripts/verify-context-manifest.mjs <manifest>`: 3ファイルのdigest一致、exit 0。
 - `npm test`、`npm run typecheck`、`npm run lint`、`npm run build`、`npm run docs:verify`、`npm run security:scan`: すべてexit 0。

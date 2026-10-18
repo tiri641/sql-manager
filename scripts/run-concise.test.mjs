@@ -4,8 +4,8 @@ import test from "node:test";
 import { formatOutput, redactText, signalExitCode, summarizeText } from "./run-concise.mjs";
 
 test("redacts common credential patterns", () => {
-  const result = redactText("Authorization: Bearer abc.def\npassword=secret-value\n{\"AWS_SECRET_ACCESS_KEY\":\"json-secret\"}\nAWS_SECRET_ACCESS_KEY=env-secret\npostgresql://user:pass@example\nghp_123456789012345678901234567890\n-----BEGIN PRIVATE KEY-----secret-----END PRIVATE KEY-----");
-  assert.doesNotMatch(result, /abc\.def|secret-value|json-secret|env-secret|user:pass|ghp_|PRIVATE KEY-----secret/);
+  const result = redactText("Authorization: Bearer abc.def\npassword=secret-value\n{\"AWS_SECRET_ACCESS_KEY\":\"json-secret\"}\nAWS_SECRET_ACCESS_KEY=env-secret\npostgresql://user:pass@example\nghp_123456789012345678901234567890\ngithub_pat_123456789012345678901234567890\n-----BEGIN PRIVATE KEY-----secret-----END PRIVATE KEY-----");
+  assert.doesNotMatch(result, /abc\.def|secret-value|json-secret|env-secret|user:pass|ghp_|github_pat_|PRIVATE KEY-----secret/);
   assert.match(result, /REDACTED/);
 });
 
