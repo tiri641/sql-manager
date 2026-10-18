@@ -13,6 +13,7 @@ Canonical GitHub repository: [tiri641/sql-manager](https://github.com/tiri641/sq
 ## 設計書
 
 - [エージェント開発ルール](AGENTS.md)
+- [エージェントルール索引とコンテキストポリシー](docs/agent-rules/README.md)
 - [ループエンジニアリング運用](docs/engineering-loop.md)
 - [設計・PRレビュー・チェックリスト](docs/review-checklists.md)
 - [PR前エージェントレビュー記録](docs/reviews/README.md)

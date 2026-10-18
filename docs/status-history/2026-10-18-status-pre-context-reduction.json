@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "sourcePath": "status.md",
+  "archivePath": "docs/status-history/2026-10-18-status-pre-context-reduction.md",
+  "sourceLineCount": 99,
+  "archiveLineCount": 99,
+  "sourceSha256": "66e9368dfcab8cefb4ca51d1097d218ecd4f8fef3e2896a405fb6a3a7ec9e904",
+  "archiveSha256": "66e9368dfcab8cefb4ca51d1097d218ecd4f8fef3e2896a405fb6a3a7ec9e904",
+  "archiveNormalization": "Phase 2のmainに存在する短縮前status.mdを、コンテキスト削減前のアーカイブとして保存した。",
+  "migrations": [
+    { "from": "Current phase", "to": "status.md#Current phase" },
+    { "from": "Completed", "to": "status.md#Completed plus linked reviews/ADRs" },
+    { "from": "Current session update", "to": "status.md#In progress and status archive" },
+    { "from": "Next actions", "to": "status.md#Next actions" },
+    { "from": "Blockers / limitations", "to": "status.md#Blockers / limitations" },
+    { "from": "Latest validation evidence", "to": "status.md#Latest verification and status archive" },
+    { "from": "Validation evidence", "to": "status.md#Latest verification and status archive" },
+    { "from": "Active decisions", "to": "status.md#Active decisions and docs/adr/" },
+    { "from": "Session handoff", "to": "status.md#Session handoff" },
+    { "from": "Historical review notes", "to": "docs/reviews/ and this archive" }
+  ]
+}

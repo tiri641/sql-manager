@@ -9,6 +9,54 @@ permissions:
   contents: read
 
 jobs:
+  context-policy:
+    name: context-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Pin npm toolchain
+        run: npm install --global npm@11.17.0
+      - name: Verify toolchain
+        run: |
+          test "$(node --version)" = "v24.19.0"
+          test "$(npm --version)" = "11.17.0"
+      - name: Context contract tests
+        run: npm run agent:context:test
+      - name: Context policy verification
+        run: npm run agent:context:verify
+      - name: Generate and verify context manifest
+        run: |
+          agent_lines=$(wc -l < AGENTS.md)
+          status_lines=$(wc -l < status.md)
+          rules_lines=$(wc -l < docs/agent-rules/README.md)
+          test -n "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          node scripts/create-context-manifest.mjs \
+            --files "AGENTS.md:1-${agent_lines},status.md:1-${status_lines},docs/agent-rules/README.md:1-${rules_lines}" \
+            --revision "$GITHUB_SHA" > "$RUNNER_TEMP/context-manifest.json"
+          node scripts/verify-context-manifest.mjs "$RUNNER_TEMP/context-manifest.json"
+      - name: Smoke test concise command output
+        run: |
+          set +e
+          node scripts/run-concise.mjs --max-lines 10 --max-bytes 200 -- sh -c 'printf "one\ntwo\n"; printf "secret=hidden\n" >&2; exit 3' > "$RUNNER_TEMP/concise-output.txt"
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 3
+          rg -F "[REDACTED]" "$RUNNER_TEMP/concise-output.txt"
+          set +e
+          node scripts/run-concise.mjs --max-lines 2 --max-bytes 200 -- sh -c 'printf "one\ntwo\n"; exit 3' > "$RUNNER_TEMP/concise-truncated.txt"
+          truncated_exit_code=$?
+          set -e
+          test "$truncated_exit_code" -eq 3
+          rg -F "[output-truncated]" "$RUNNER_TEMP/concise-truncated.txt"
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
