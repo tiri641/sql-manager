@@ -54,12 +54,12 @@ export const REQUIRED_AGENT_RULE_MARKERS = {
 };
 
 export const EXPECTED_SOURCE_RULES = {
-  "SAFE-NO-AWS-DB-SQL": { canonicalPath: "AGENTS.md", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md", "docs/adr/"], overridePolicy: "root-safety-non-overridable" },
-  "SAFE-NO-SENSITIVE-DATA": { canonicalPath: "AGENTS.md", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md"], overridePolicy: "root-safety-non-overridable" },
-  "SAFE-UNKNOWN-FAIL-CLOSED": { canonicalPath: "AGENTS.md", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md"], overridePolicy: "root-safety-non-overridable" },
-  "GATE-PLAN-REVIEW": { canonicalPath: "docs/engineering-loop.md", requiredSections: ["Planモードのレビュー・提示Gate"], validationRule: "required-reference", allowedReferences: ["docs/reviews/plan/"], overridePolicy: "scoped-additive-only" },
-  "GATE-PRE-PR-REVIEW": { canonicalPath: ".github/agents/README.md", requiredSections: ["PR作成前"], validationRule: "required-reference", allowedReferences: ["docs/reviews/"], overridePolicy: "scoped-additive-only" },
-  "STATE-STATUS-ADR": { canonicalPath: "docs/engineering-loop.md", requiredSections: ["セッション継続と設計判断"], validationRule: "required-reference", allowedReferences: ["status.md", "docs/adr/"], overridePolicy: "root-safety-non-overridable" }
+  "SAFE-NO-AWS-DB-SQL": { canonicalPath: "AGENTS.md", scope: "/", priority: 0, when: "always", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md", "docs/adr/"], overridePolicy: "root-safety-non-overridable" },
+  "SAFE-NO-SENSITIVE-DATA": { canonicalPath: "AGENTS.md", scope: "/", priority: 0, when: "always", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md"], overridePolicy: "root-safety-non-overridable" },
+  "SAFE-UNKNOWN-FAIL-CLOSED": { canonicalPath: "AGENTS.md", scope: "/", priority: 0, when: "always", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md"], overridePolicy: "root-safety-non-overridable" },
+  "GATE-PLAN-REVIEW": { canonicalPath: "docs/engineering-loop.md", scope: "/", priority: 1, when: "plan", requiredSections: ["Planモードのレビュー・提示Gate"], validationRule: "required-reference", allowedReferences: ["docs/reviews/plan/"], overridePolicy: "scoped-additive-only" },
+  "GATE-PRE-PR-REVIEW": { canonicalPath: ".github/agents/README.md", scope: "/", priority: 2, when: "pr", requiredSections: ["PR作成前"], validationRule: "required-reference", allowedReferences: ["docs/reviews/"], overridePolicy: "scoped-additive-only" },
+  "STATE-STATUS-ADR": { canonicalPath: "docs/engineering-loop.md", scope: "/", priority: 1, when: "always", requiredSections: ["セッション継続と設計判断"], validationRule: "required-reference", allowedReferences: ["status.md", "docs/adr/"], overridePolicy: "root-safety-non-overridable" }
 };
 
 export const REQUIRED_STATUS_ARCHIVE_MIGRATIONS = [
@@ -242,7 +242,7 @@ async function verifySourceOfTruth(root, agentsText, errors) {
     if (ROOT_SAFETY_RULE_IDS.includes(rule.id) && rule.overridePolicy !== "root-safety-non-overridable") errors.push(`root safety overridePolicy may not be weakened: ${rule.id}`);
     const expected = EXPECTED_SOURCE_RULES[rule.id];
     if (expected) {
-      const actualContract = (({ canonicalPath, requiredSections, validationRule, allowedReferences, overridePolicy }) => ({ canonicalPath, requiredSections, validationRule, allowedReferences, overridePolicy }))(rule);
+      const actualContract = (({ canonicalPath, scope, priority, when, requiredSections, validationRule, allowedReferences, overridePolicy }) => ({ canonicalPath, scope, priority, when, requiredSections, validationRule, allowedReferences, overridePolicy }))(rule);
       if (JSON.stringify(actualContract) !== JSON.stringify(expected)) errors.push(`source-of-truth rule contract mismatch: ${rule.id}`);
     }
   }
@@ -258,6 +258,9 @@ async function verifyArchive(root, statusText, errors) {
     return;
   }
   const archiveText = await readText(root, archivePath);
+  const sourceSnapshotPath = "docs/status-history/2026-10-18-status-pre-context-reduction.source.md";
+  const sourceSnapshotExists = existsSync(join(root, sourceSnapshotPath));
+  const sourceSnapshotText = sourceSnapshotExists ? await readText(root, sourceSnapshotPath) : "";
   let metadata;
   try {
     metadata = JSON.parse(await readText(root, metadataPath));
@@ -265,10 +268,11 @@ async function verifyArchive(root, statusText, errors) {
     errors.push(`status archive metadata is not valid JSON: ${error.message}`);
     return;
   }
-  if (metadata.sourcePath !== "status.md" || metadata.archivePath !== archivePath) errors.push("status archive metadata paths are invalid");
-  if (!Number.isInteger(metadata.sourceLineCount) || metadata.sourceLineCount < 1) errors.push("status archive source line count is invalid");
+  if (metadata.sourcePath !== "status.md" || metadata.sourceSnapshotPath !== sourceSnapshotPath || metadata.archivePath !== archivePath) errors.push("status archive metadata paths are invalid");
+  if (!sourceSnapshotExists) errors.push("status archive source snapshot is missing");
+  if (!Number.isInteger(metadata.sourceLineCount) || metadata.sourceLineCount !== lineCount(sourceSnapshotText)) errors.push("status archive source line count mismatch");
   if (!Number.isInteger(metadata.archiveLineCount) || metadata.archiveLineCount !== lineCount(archiveText)) errors.push("status archive line count mismatch");
-  if (!/^[a-f0-9]{64}$/.test(metadata.sourceSha256 ?? "") || !/^[a-f0-9]{64}$/.test(metadata.archiveSha256 ?? "") || metadata.archiveSha256 !== sha256(Buffer.from(canonicalizeText(archiveText), "utf8"))) errors.push("status archive SHA-256 mismatch");
+  if (!/^[a-f0-9]{64}$/.test(metadata.sourceSha256 ?? "") || metadata.sourceSha256 !== sha256(Buffer.from(canonicalizeText(sourceSnapshotText), "utf8")) || !/^[a-f0-9]{64}$/.test(metadata.archiveSha256 ?? "") || metadata.archiveSha256 !== sha256(Buffer.from(canonicalizeText(archiveText), "utf8"))) errors.push("status archive SHA-256 mismatch");
   if (!Array.isArray(metadata.migrations) || metadata.migrations.length === 0) errors.push("status archive migration map is missing");
   const migrationSources = new Set();
   for (const migration of metadata.migrations ?? []) {

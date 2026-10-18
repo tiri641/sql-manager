@@ -99,7 +99,7 @@ export async function writeManifest(root, outputPath, manifest) {
   if (parentRelative.startsWith("..") || isAbsolute(parentRelative)) throw new Error("manifest output parent escapes repository root");
   if (existsSync(absolute) && (await lstat(absolute)).isSymbolicLink()) throw new Error("manifest output cannot be a symbolic link");
   if (existsSync(absolute)) throw new Error("manifest output already exists; refusing overwrite");
-  await writeFile(absolute, output, "utf8");
+  await writeFile(absolute, output, { encoding: "utf8", flag: "wx" });
 }
 
 async function main() {

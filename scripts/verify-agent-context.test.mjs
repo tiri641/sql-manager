@@ -56,6 +56,7 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
   await writeFile(join(root, ".github", "agents", "README.md"), "# Review agents\n");
   await writeFile(join(root, "docs", "agent-rules", "README.md"), "# Agent rules\n");
   await writeFile(join(root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.md"), archive);
+  await writeFile(join(root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.source.md"), archive);
   const sourceRuleIds = [
     "SAFE-NO-AWS-DB-SQL",
     "SAFE-NO-SENSITIVE-DATA",
@@ -66,11 +67,10 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
   ];
   await writeFile(join(root, "docs", "agent-rules", "source-of-truth.json"), JSON.stringify({
     version: 1,
-    rules: sourceRuleIds.map((id, priority) => ({
+    rules: sourceRuleIds.map((id) => ({
       ...EXPECTED_SOURCE_RULES[id],
       id,
       scope: "/",
-      priority,
       when: id === "GATE-PLAN-REVIEW" ? "plan" : id === "GATE-PRE-PR-REVIEW" ? "pr" : "always"
     }))
   }, null, 2) + "\n");
@@ -85,6 +85,7 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
   }, null, 2) + "\n");
   await writeFile(join(root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.json"), JSON.stringify({
     sourcePath: "status.md",
+    sourceSnapshotPath: "docs/status-history/2026-10-18-status-pre-context-reduction.source.md",
     archivePath: "docs/status-history/2026-10-18-status-pre-context-reduction.md",
     sourceLineCount: lineCount(archive),
     archiveLineCount: lineCount(archive),
@@ -187,6 +188,17 @@ test("rejects weakening a root safety rule override policy", async () => {
   const result = await analyzeContext(fixture.root);
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /root safety overridePolicy/i);
+});
+
+test("rejects weakening a source-of-truth scope contract", async () => {
+  const fixture = await createFixture();
+  const sourcePath = join(fixture.root, "docs", "agent-rules", "source-of-truth.json");
+  const source = JSON.parse(await readFile(sourcePath, "utf8"));
+  source.rules.find((rule) => rule.id === "SAFE-NO-AWS-DB-SQL").scope = "/narrower";
+  await writeFile(sourcePath, JSON.stringify(source) + "\n");
+  const result = await analyzeContext(fixture.root);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /contract mismatch/i);
 });
 
 test("canonicalizes CRLF and rejects secret or SQL paths from digest input", async () => {
