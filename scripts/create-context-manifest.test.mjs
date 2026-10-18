@@ -139,3 +139,21 @@ test("records dirty and untracked Git state in the manifest", async () => {
   assert.equal(manifest.dirty, true);
   assert.equal(manifest.untracked, true);
 });
+
+test("verifies Git HEAD and working tree metadata", async () => {
+  const fixture = await createGitFixture();
+  await writeManifestSchema(fixture.root);
+  const manifest = await createManifest(fixture.root, { files: ["status.md:1-1"], revision: fixture.head });
+  const valid = await verifyManifest(fixture.root, manifest);
+  assert.equal(valid.ok, true, valid.errors.join("\n"));
+
+  const staleRevision = await verifyManifest(fixture.root, { ...manifest, revision: "0".repeat(40) });
+  assert.equal(staleRevision.ok, false);
+  assert.match(staleRevision.errors.join("\n"), /Git HEAD/i);
+
+  await writeFile(join(fixture.root, "status.md"), "# Changed\n", "utf8");
+  await writeFile(join(fixture.root, "notes.txt"), "untracked\n", "utf8");
+  const staleState = await verifyManifest(fixture.root, { ...manifest, dirty: false, untracked: false });
+  assert.equal(staleState.ok, false);
+  assert.match(staleState.errors.join("\n"), /dirty|untracked/i);
+});

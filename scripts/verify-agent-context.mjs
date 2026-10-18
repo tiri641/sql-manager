@@ -47,7 +47,7 @@ export const ROOT_SAFETY_RULE_IDS = [
 export const REQUIRED_STATUS_ARCHIVE_MIGRATIONS = [
   "Current phase",
   "Completed",
-  "Current session update",
+  "In progress",
   "Next actions",
   "Blockers / limitations",
   "Latest validation evidence",
@@ -242,7 +242,8 @@ async function verifyArchive(root, statusText, errors) {
     return;
   }
   if (metadata.sourcePath !== "status.md" || metadata.archivePath !== archivePath) errors.push("status archive metadata paths are invalid");
-  if (metadata.sourceLineCount !== metadata.archiveLineCount || metadata.archiveLineCount !== lineCount(archiveText)) errors.push("status archive line count mismatch");
+  if (!Number.isInteger(metadata.sourceLineCount) || metadata.sourceLineCount < 1) errors.push("status archive source line count is invalid");
+  if (!Number.isInteger(metadata.archiveLineCount) || metadata.archiveLineCount !== lineCount(archiveText)) errors.push("status archive line count mismatch");
   if (!/^[a-f0-9]{64}$/.test(metadata.sourceSha256 ?? "") || !/^[a-f0-9]{64}$/.test(metadata.archiveSha256 ?? "") || metadata.archiveSha256 !== sha256(Buffer.from(canonicalizeText(archiveText), "utf8"))) errors.push("status archive SHA-256 mismatch");
   if (!Array.isArray(metadata.migrations) || metadata.migrations.length === 0) errors.push("status archive migration map is missing");
   const migrationSources = new Set();
