@@ -49,13 +49,13 @@ jobs:
           exit_code=$?
           set -e
           test "$exit_code" -eq 3
-          rg -F "[REDACTED]" "$RUNNER_TEMP/concise-output.txt"
+          grep -F "[REDACTED]" "$RUNNER_TEMP/concise-output.txt"
           set +e
           node scripts/run-concise.mjs --max-lines 2 --max-bytes 200 -- sh -c 'printf "one\ntwo\n"; exit 3' > "$RUNNER_TEMP/concise-truncated.txt"
           truncated_exit_code=$?
           set -e
           test "$truncated_exit_code" -eq 3
-          rg -F "[output-truncated]" "$RUNNER_TEMP/concise-truncated.txt"
+          grep -F "[output-truncated]" "$RUNNER_TEMP/concise-truncated.txt"
 
   verify:
     runs-on: ubuntu-latest
