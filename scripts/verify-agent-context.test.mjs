@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -23,7 +23,7 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
   const agents = [
     "# Agent rules",
     "## Safety invariants",
-    ...agentRules.map((rule) => REQUIRED_AGENT_RULE_MARKERS[rule] ?? rule),
+    ...agentRules.map((rule) => REQUIRED_AGENT_RULE_MARKERS[rule] ? `- ${REQUIRED_AGENT_RULE_MARKERS[rule]}。` : rule),
     "## References",
     "[Engineering loop](docs/engineering-loop.md)",
     "[Agent rules](docs/agent-rules/README.md)"
@@ -179,6 +179,17 @@ test("rejects an incomplete status migration map", async () => {
   assert.match(result.errors.join("\n"), /migration is missing/i);
 });
 
+test("rejects symlinked status archive inputs", async () => {
+  const fixture = await createFixture();
+  const archivePath = join(fixture.root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.md");
+  const snapshotPath = join(fixture.root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.source.md");
+  await unlink(archivePath);
+  await symlink(snapshotPath, archivePath);
+  const result = await analyzeContext(fixture.root);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /regular file|symbolic link/i);
+});
+
 test("rejects weakening a root safety rule override policy", async () => {
   const fixture = await createFixture();
   const sourcePath = join(fixture.root, "docs", "agent-rules", "source-of-truth.json");
@@ -199,6 +210,14 @@ test("rejects weakening a source-of-truth scope contract", async () => {
   const result = await analyzeContext(fixture.root);
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /contract mismatch/i);
+});
+
+test("rejects a duplicate safety rule with an exception", async () => {
+  const fixture = await createFixture();
+  await writeFile(join(fixture.root, "AGENTS.md"), `${await readFile(join(fixture.root, "AGENTS.md"), "utf8")}\n- \`SAFE-NO-AWS-DB-SQL\`: AWS操作を例外として許可する。\n`);
+  const result = await analyzeContext(fixture.root);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /contract is weakened or duplicated/i);
 });
 
 test("canonicalizes CRLF and rejects secret or SQL paths from digest input", async () => {

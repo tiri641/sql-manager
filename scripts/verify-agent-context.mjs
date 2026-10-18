@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
@@ -45,7 +45,7 @@ export const ROOT_SAFETY_RULE_IDS = [
 ];
 
 export const REQUIRED_AGENT_RULE_MARKERS = {
-  "SAFE-NO-AWS-DB-SQL": "`SAFE-NO-AWS-DB-SQL`: AWSリソースの作成・変更・削除・deploy、外部環境・実DB接続、SQL実行は禁止",
+  "SAFE-NO-AWS-DB-SQL": "`SAFE-NO-AWS-DB-SQL`: AWSリソースの作成・変更・削除・deploy、外部環境・実DB接続、SQL実行は禁止。明示依頼なしに行わない",
   "SAFE-NO-SENSITIVE-DATA": "`SAFE-NO-SENSITIVE-DATA`: SQL本文、実行ログ、Secret、credential、個人情報、会社機密をGit、通常ログ、PR、レビュー記録へ保存・出力しない",
   "SAFE-UNKNOWN-FAIL-CLOSED": "`SAFE-UNKNOWN-FAIL-CLOSED`: 外部ACK、DB結果、ログ保存、状態更新が不明な場合は成功・削除・再実行・lock解放へ変換しない",
   "GATE-PLAN-REVIEW": "`GATE-PLAN-REVIEW`: PlanはDRAFTとして作成し、影響エージェントのレビューでBlocking/Highを解消して`PLAN_APPROVED`になるまで最終Planとしない",
@@ -157,6 +157,33 @@ async function readText(root, path) {
   return readFile(join(root, path), "utf8");
 }
 
+async function readTrustedRepositoryFile(root, path, errors, label) {
+  const rootPath = await realpath(root);
+  const absolute = resolve(rootPath, path);
+  const rootRelative = relative(rootPath, absolute);
+  if (rootRelative.startsWith("..") || isAbsolute(rootRelative)) {
+    errors.push(`${label} escapes repository root: ${path}`);
+    return null;
+  }
+  try {
+    const stats = await lstat(absolute);
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      errors.push(`${label} must be a regular file: ${path}`);
+      return null;
+    }
+    const actual = await realpath(absolute);
+    const actualRelative = relative(rootPath, actual);
+    if (actualRelative.startsWith("..") || isAbsolute(actualRelative)) {
+      errors.push(`${label} escapes repository root through realpath: ${path}`);
+      return null;
+    }
+    return await readFile(absolute, "utf8");
+  } catch (error) {
+    errors.push(`${label} cannot be read: ${path}`);
+    return null;
+  }
+}
+
 function headingExists(text, heading) {
   return text.split("\n").some((line) => line.trim() === `## ${heading}` || line.trim() === `# ${heading}`);
 }
@@ -247,7 +274,11 @@ async function verifySourceOfTruth(root, agentsText, errors) {
     }
   }
   for (const requiredId of REQUIRED_SOURCE_RULE_IDS) if (!seen.has(requiredId)) errors.push(`source-of-truth missing required rule: ${requiredId}`);
-  for (const [ruleId, marker] of Object.entries(REQUIRED_AGENT_RULE_MARKERS)) if (!agentsText.includes(marker)) errors.push(`AGENTS.md safety/Gate marker is weakened or missing: ${ruleId}`);
+  const agentLines = canonicalizeText(agentsText).split("\n");
+  for (const [ruleId, marker] of Object.entries(REQUIRED_AGENT_RULE_MARKERS)) {
+    const ruleLines = agentLines.filter((line) => line.includes(`\`${ruleId}\``));
+    if (ruleLines.length !== 1 || ruleLines[0] !== `- ${marker}。`) errors.push(`AGENTS.md safety/Gate contract is weakened or duplicated: ${ruleId}`);
+  }
 }
 
 async function verifyArchive(root, statusText, errors) {
@@ -257,10 +288,9 @@ async function verifyArchive(root, statusText, errors) {
     errors.push("status archive or archive metadata is missing");
     return;
   }
-  const archiveText = await readText(root, archivePath);
+  const archiveText = await readTrustedRepositoryFile(root, archivePath, errors, "status archive");
   const sourceSnapshotPath = "docs/status-history/2026-10-18-status-pre-context-reduction.source.md";
-  const sourceSnapshotExists = existsSync(join(root, sourceSnapshotPath));
-  const sourceSnapshotText = sourceSnapshotExists ? await readText(root, sourceSnapshotPath) : "";
+  const sourceSnapshotText = await readTrustedRepositoryFile(root, sourceSnapshotPath, errors, "status archive source snapshot");
   let metadata;
   try {
     metadata = JSON.parse(await readText(root, metadataPath));
@@ -269,10 +299,9 @@ async function verifyArchive(root, statusText, errors) {
     return;
   }
   if (metadata.sourcePath !== "status.md" || metadata.sourceSnapshotPath !== sourceSnapshotPath || metadata.archivePath !== archivePath) errors.push("status archive metadata paths are invalid");
-  if (!sourceSnapshotExists) errors.push("status archive source snapshot is missing");
-  if (!Number.isInteger(metadata.sourceLineCount) || metadata.sourceLineCount !== lineCount(sourceSnapshotText)) errors.push("status archive source line count mismatch");
-  if (!Number.isInteger(metadata.archiveLineCount) || metadata.archiveLineCount !== lineCount(archiveText)) errors.push("status archive line count mismatch");
-  if (!/^[a-f0-9]{64}$/.test(metadata.sourceSha256 ?? "") || metadata.sourceSha256 !== sha256(Buffer.from(canonicalizeText(sourceSnapshotText), "utf8")) || !/^[a-f0-9]{64}$/.test(metadata.archiveSha256 ?? "") || metadata.archiveSha256 !== sha256(Buffer.from(canonicalizeText(archiveText), "utf8"))) errors.push("status archive SHA-256 mismatch");
+  if (!Number.isInteger(metadata.sourceLineCount) || metadata.sourceLineCount !== lineCount(sourceSnapshotText ?? "")) errors.push("status archive source line count mismatch");
+  if (!Number.isInteger(metadata.archiveLineCount) || metadata.archiveLineCount !== lineCount(archiveText ?? "")) errors.push("status archive line count mismatch");
+  if (!/^[a-f0-9]{64}$/.test(metadata.sourceSha256 ?? "") || metadata.sourceSha256 !== sha256(Buffer.from(canonicalizeText(sourceSnapshotText ?? ""), "utf8")) || !/^[a-f0-9]{64}$/.test(metadata.archiveSha256 ?? "") || metadata.archiveSha256 !== sha256(Buffer.from(canonicalizeText(archiveText ?? ""), "utf8"))) errors.push("status archive SHA-256 mismatch");
   if (!Array.isArray(metadata.migrations) || metadata.migrations.length === 0) errors.push("status archive migration map is missing");
   const migrationSources = new Set();
   for (const migration of metadata.migrations ?? []) {
@@ -284,10 +313,10 @@ async function verifyArchive(root, statusText, errors) {
   }
   for (const requiredMigration of REQUIRED_STATUS_ARCHIVE_MIGRATIONS) if (!migrationSources.has(requiredMigration)) errors.push(`status archive migration is missing: ${requiredMigration}`);
   for (const heading of ["Current phase", "Historical review notes", "Validation evidence"]) {
-    if (!archiveText.includes(heading)) errors.push(`status archive missing legacy heading: ${heading}`);
+    if (!(archiveText ?? "").includes(heading)) errors.push(`status archive missing legacy heading: ${heading}`);
   }
   if (!statusText.includes(archivePath)) errors.push("status.md does not link to the status archive");
-  await verifyLinks(root, archivePath, archiveText, errors);
+  if (archiveText !== null) await verifyLinks(root, archivePath, archiveText, errors);
 }
 
 export async function analyzeContext(root) {
