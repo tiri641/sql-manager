@@ -31,3 +31,14 @@ Codex UI、CLI、MCPの内部stdout上限はリポジトリから直接制御で
 ## Context manifest
 
 `context-manifest.schema.json`に従い、レビュー入力に含めるファイルと行範囲を明示します。digest対象は`verify-agent-context.mjs`の明示的な非機密path allowlistに限定し、未知path、パストラバーサル、symlink、SQL拡張子、Secret path、`.git`、`node_modules`はfail-closedで拒否します。生成後は`node scripts/verify-context-manifest.mjs <manifest>`で行範囲とdigestを再検証します。Git revisionが取得できない場合は`working-tree`と明示し、commitやclean状態を推測しません。
+
+Git checkout上では、次のように同じmanifestファイルを生成・検証します。
+
+```bash
+context_revision=$(git rev-parse HEAD)
+rules_lines=$(wc -l < docs/agent-rules/README.md)
+node scripts/create-context-manifest.mjs \
+  --files "AGENTS.md:1-$(wc -l < AGENTS.md),status.md:1-$(wc -l < status.md),docs/agent-rules/README.md:1-${rules_lines}" \
+  --revision "$context_revision" > /tmp/sql-manager-context-manifest.json
+node scripts/verify-context-manifest.mjs /tmp/sql-manager-context-manifest.json
+```

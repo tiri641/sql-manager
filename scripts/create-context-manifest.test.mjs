@@ -89,6 +89,17 @@ test("rejects a manifest output outside the repository root", async () => {
   );
 });
 
+test("refuses to overwrite an existing manifest output", async () => {
+  const root = await mkdtemp(join(tmpdir(), "sql-patch-manager-manifest-"));
+  await writeFile(join(root, "status.md"), "# Status\n", "utf8");
+  const manifest = await createManifest(root, { files: ["status.md:1-1"], revision: "working-tree" });
+  await writeManifest(root, "manifest.json", manifest);
+  await assert.rejects(
+    () => writeManifest(root, "manifest.json", manifest),
+    /refusing overwrite/i
+  );
+});
+
 test("verifies a generated manifest and rejects a digest mismatch", async () => {
   const root = await mkdtemp(join(tmpdir(), "sql-patch-manager-manifest-"));
   await writeFile(join(root, "status.md"), "# Status\n", "utf8");

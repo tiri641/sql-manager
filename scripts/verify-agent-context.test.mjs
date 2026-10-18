@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { analyzeContext, canonicalizeText, computeWorkingTreeDigest, lineCount, REQUIRED_STATUS_ARCHIVE_MIGRATIONS, sha256 } from "./verify-agent-context.mjs";
+import { analyzeContext, canonicalizeText, computeWorkingTreeDigest, EXPECTED_SOURCE_RULES, lineCount, REQUIRED_AGENT_RULE_MARKERS, REQUIRED_STATUS_ARCHIVE_MIGRATIONS, sha256 } from "./verify-agent-context.mjs";
 
 const requiredAgentRules = [
   "SAFE-NO-AWS-DB-SQL",
@@ -17,12 +17,13 @@ const requiredAgentRules = [
 
 async function createFixture({ agentRules = requiredAgentRules, statusLines = 12, archive = "# Old status\n## Current phase\nCompleted\nCurrent session update\nNext actions\nBlockers / limitations\nLatest validation evidence\nValidation evidence\nActive decisions\nHistorical review notes\nSession handoff\n" } = {}) {
   const root = await mkdtemp(join(tmpdir(), "sql-patch-manager-context-"));
+  await mkdir(join(root, ".github", "agents"), { recursive: true });
   await mkdir(join(root, "docs", "agent-rules"), { recursive: true });
   await mkdir(join(root, "docs", "status-history"), { recursive: true });
   const agents = [
     "# Agent rules",
     "## Safety invariants",
-    ...agentRules,
+    ...agentRules.map((rule) => REQUIRED_AGENT_RULE_MARKERS[rule] ?? rule),
     "## References",
     "[Engineering loop](docs/engineering-loop.md)",
     "[Agent rules](docs/agent-rules/README.md)"
@@ -52,6 +53,7 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
   await writeFile(join(root, "AGENTS.md"), agents);
   await writeFile(join(root, "status.md"), status);
   await writeFile(join(root, "docs", "engineering-loop.md"), "# Engineering loop\n");
+  await writeFile(join(root, ".github", "agents", "README.md"), "# Review agents\n");
   await writeFile(join(root, "docs", "agent-rules", "README.md"), "# Agent rules\n");
   await writeFile(join(root, "docs", "status-history", "2026-10-18-status-pre-context-reduction.md"), archive);
   const sourceRuleIds = [
@@ -65,15 +67,11 @@ async function createFixture({ agentRules = requiredAgentRules, statusLines = 12
   await writeFile(join(root, "docs", "agent-rules", "source-of-truth.json"), JSON.stringify({
     version: 1,
     rules: sourceRuleIds.map((id, priority) => ({
+      ...EXPECTED_SOURCE_RULES[id],
       id,
-      canonicalPath: "AGENTS.md",
       scope: "/",
       priority,
-      when: "always",
-      requiredSections: ["Safety invariants"],
-      validationRule: "required-rule-id",
-      allowedReferences: [],
-      overridePolicy: id.startsWith("SAFE-") || id === "STATE-STATUS-ADR" ? "root-safety-non-overridable" : "scoped-additive-only"
+      when: id === "GATE-PLAN-REVIEW" ? "plan" : id === "GATE-PRE-PR-REVIEW" ? "pr" : "always"
     }))
   }, null, 2) + "\n");
   await writeFile(join(root, "docs", "agent-rules", "source-of-truth.schema.json"), JSON.stringify({

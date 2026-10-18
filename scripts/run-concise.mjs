@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { constants as osConstants } from "node:os";
 import { resolve } from "node:path";
 
 export const DEFAULT_MAX_LINES = 80;
@@ -7,12 +8,19 @@ export const DEFAULT_MAX_BYTES = 12000;
 
 export function redactText(value) {
   return String(value)
+    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[REDACTED PRIVATE KEY]")
+    .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, "gh[REDACTED]")
     .replace(/(AKIA|ASIA)[A-Z0-9]{16}/g, "$1[REDACTED]")
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, "$1[REDACTED]")
     .replace(/(postgres(?:ql)?:\/\/)[^\s]+/gi, "$1[REDACTED]")
     .replace(/((?:["']?(?:password|secret|token|api[_-]?key|AWS_[A-Z0-9_]+)["']?)\s*:\s*)("[^"]*"|'[^']*'|[^,}\s]+)/gi, "$1[REDACTED]")
     .replace(/((?:AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|GITHUB_TOKEN)\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, "$1[REDACTED]")
     .replace(/((?:password|secret|token|api[_-]?key)\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s]+)/gi, "$1[REDACTED]");
+}
+
+export function signalExitCode(signal) {
+  const number = osConstants.signals?.[signal];
+  return number ? 128 + number : 1;
 }
 
 function truncateUtf8(value, maxBytes) {
@@ -87,7 +95,7 @@ async function main() {
   const stdout = collectLimited(child.stdout, options.maxBytes);
   const stderr = collectLimited(child.stderr, options.maxBytes);
   const exitCode = await new Promise((resolveExit) => {
-    child.on("close", (code, signal) => resolveExit({ code: code ?? 1, signal }));
+    child.on("close", (code, signal) => resolveExit({ code: code ?? signalExitCode(signal), signal }));
     child.on("error", (error) => {
       process.stderr.write(`command start failed: ${redactText(error.message)}\n`);
       resolveExit({ code: 1, signal: null });

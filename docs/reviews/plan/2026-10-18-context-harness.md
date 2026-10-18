@@ -21,7 +21,7 @@ Codexやレビューエージェントが毎回長大な履歴・設計文書・
 - `docs/status-history/README.md`、`docs/status-history/2026-10-18-status-pre-context-reduction.md`、`docs/status-history/2026-10-18-status-pre-context-reduction.json`: 短縮前の`status.md`を完全保存し、旧セクション、行数、SHA-256、移管先の対応を記録
 - `docs/reviews/plan/2026-10-18-context-harness-review.md`: Planレビュー記録
 - `scripts/verify-agent-context.mjs`: AGENTS/statusの行数・必須見出し・参照リンク・過度な履歴混入を検査
-- `scripts/verify-agent-context.test.mjs`、`scripts/fixtures/agent-context/*`: 行数境界、必須項目、リンク/anchor、アーカイブ完全性、Gate矛盾、正本対応表の失敗fixtureを検証
+- `scripts/verify-agent-context.test.mjs`、`scripts/create-context-manifest.test.mjs`: 一時fixtureで行数境界、必須項目、リンク/anchor、アーカイブ完全性、Gate矛盾、正本対応表、Git revision/dirty/untrackedの失敗条件を検証
 - `package.json`: `agent:context:verify`を追加。依存追加がないため`package-lock.json`は変更しない
 - `.github/workflows/ci.yml`: 既存のverifyを保持した独立`context-policy` jobを追加。AWS認証・DB接続・SQL実行は行わない
 - `README.md`: 軽量なセッション継続ルールへのリンクを追加

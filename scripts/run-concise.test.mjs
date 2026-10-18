@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatOutput, redactText, summarizeText } from "./run-concise.mjs";
+import { formatOutput, redactText, signalExitCode, summarizeText } from "./run-concise.mjs";
 
 test("redacts common credential patterns", () => {
-  const result = redactText("Authorization: Bearer abc.def\npassword=secret-value\n{\"AWS_SECRET_ACCESS_KEY\":\"json-secret\"}\nAWS_SECRET_ACCESS_KEY=env-secret\npostgresql://user:pass@example");
-  assert.doesNotMatch(result, /abc\.def|secret-value|json-secret|env-secret|user:pass/);
+  const result = redactText("Authorization: Bearer abc.def\npassword=secret-value\n{\"AWS_SECRET_ACCESS_KEY\":\"json-secret\"}\nAWS_SECRET_ACCESS_KEY=env-secret\npostgresql://user:pass@example\nghp_123456789012345678901234567890\n-----BEGIN PRIVATE KEY-----secret-----END PRIVATE KEY-----");
+  assert.doesNotMatch(result, /abc\.def|secret-value|json-secret|env-secret|user:pass|ghp_|PRIVATE KEY-----secret/);
   assert.match(result, /REDACTED/);
+});
+
+test("preserves conventional signal exit codes", () => {
+  assert.equal(signalExitCode("SIGTERM"), 143);
+  assert.equal(signalExitCode("UNKNOWN"), 1);
 });
 
 test("limits output by lines and bytes", () => {

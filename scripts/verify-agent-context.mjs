@@ -44,6 +44,24 @@ export const ROOT_SAFETY_RULE_IDS = [
   "STATE-STATUS-ADR"
 ];
 
+export const REQUIRED_AGENT_RULE_MARKERS = {
+  "SAFE-NO-AWS-DB-SQL": "`SAFE-NO-AWS-DB-SQL`: AWSリソースの作成・変更・削除・deploy、外部環境・実DB接続、SQL実行は禁止",
+  "SAFE-NO-SENSITIVE-DATA": "`SAFE-NO-SENSITIVE-DATA`: SQL本文、実行ログ、Secret、credential、個人情報、会社機密をGit、通常ログ、PR、レビュー記録へ保存・出力しない",
+  "SAFE-UNKNOWN-FAIL-CLOSED": "`SAFE-UNKNOWN-FAIL-CLOSED`: 外部ACK、DB結果、ログ保存、状態更新が不明な場合は成功・削除・再実行・lock解放へ変換しない",
+  "GATE-PLAN-REVIEW": "`GATE-PLAN-REVIEW`: PlanはDRAFTとして作成し、影響エージェントのレビューでBlocking/Highを解消して`PLAN_APPROVED`になるまで最終Planとしない",
+  "GATE-PRE-PR-REVIEW": "`GATE-PRE-PR-REVIEW`: PRはPhase単位とし、最終Diffの独立エージェントレビュー、再検証、Blocking/High 0件、ユーザー明示依頼が揃うまで作成しない",
+  "STATE-STATUS-ADR": "`STATE-STATUS-ADR`: 重要な判断はADRへ、現在状態・Blocker・検証結果・次の作業は`status.md`へ記録する"
+};
+
+export const EXPECTED_SOURCE_RULES = {
+  "SAFE-NO-AWS-DB-SQL": { canonicalPath: "AGENTS.md", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md", "docs/adr/"], overridePolicy: "root-safety-non-overridable" },
+  "SAFE-NO-SENSITIVE-DATA": { canonicalPath: "AGENTS.md", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md"], overridePolicy: "root-safety-non-overridable" },
+  "SAFE-UNKNOWN-FAIL-CLOSED": { canonicalPath: "AGENTS.md", requiredSections: ["Safety invariants"], validationRule: "required-rule-id", allowedReferences: ["docs/security-design.md"], overridePolicy: "root-safety-non-overridable" },
+  "GATE-PLAN-REVIEW": { canonicalPath: "docs/engineering-loop.md", requiredSections: ["Planモードのレビュー・提示Gate"], validationRule: "required-reference", allowedReferences: ["docs/reviews/plan/"], overridePolicy: "scoped-additive-only" },
+  "GATE-PRE-PR-REVIEW": { canonicalPath: ".github/agents/README.md", requiredSections: ["PR作成前"], validationRule: "required-reference", allowedReferences: ["docs/reviews/"], overridePolicy: "scoped-additive-only" },
+  "STATE-STATUS-ADR": { canonicalPath: "docs/engineering-loop.md", requiredSections: ["セッション継続と設計判断"], validationRule: "required-reference", allowedReferences: ["status.md", "docs/adr/"], overridePolicy: "root-safety-non-overridable" }
+};
+
 export const REQUIRED_STATUS_ARCHIVE_MIGRATIONS = [
   "Current phase",
   "Completed",
@@ -176,7 +194,7 @@ async function verifyLinks(root, sourcePath, text, errors) {
   }
 }
 
-async function verifySourceOfTruth(root, errors) {
+async function verifySourceOfTruth(root, agentsText, errors) {
   const sourcePath = "docs/agent-rules/source-of-truth.json";
   const schemaPath = "docs/agent-rules/source-of-truth.schema.json";
   if (!existsSync(join(root, sourcePath)) || !existsSync(join(root, schemaPath))) {
@@ -222,8 +240,14 @@ async function verifySourceOfTruth(root, errors) {
     if (typeof rule.when !== "string" || rule.when.length === 0 || !Array.isArray(rule.requiredSections) || !Array.isArray(rule.allowedReferences) || typeof rule.validationRule !== "string") errors.push(`invalid source-of-truth rule fields: ${rule.id}`);
     if (!ruleSchema?.properties?.overridePolicy?.enum?.includes(rule.overridePolicy)) errors.push(`invalid source-of-truth overridePolicy: ${rule.id}`);
     if (ROOT_SAFETY_RULE_IDS.includes(rule.id) && rule.overridePolicy !== "root-safety-non-overridable") errors.push(`root safety overridePolicy may not be weakened: ${rule.id}`);
+    const expected = EXPECTED_SOURCE_RULES[rule.id];
+    if (expected) {
+      const actualContract = (({ canonicalPath, requiredSections, validationRule, allowedReferences, overridePolicy }) => ({ canonicalPath, requiredSections, validationRule, allowedReferences, overridePolicy }))(rule);
+      if (JSON.stringify(actualContract) !== JSON.stringify(expected)) errors.push(`source-of-truth rule contract mismatch: ${rule.id}`);
+    }
   }
   for (const requiredId of REQUIRED_SOURCE_RULE_IDS) if (!seen.has(requiredId)) errors.push(`source-of-truth missing required rule: ${requiredId}`);
+  for (const [ruleId, marker] of Object.entries(REQUIRED_AGENT_RULE_MARKERS)) if (!agentsText.includes(marker)) errors.push(`AGENTS.md safety/Gate marker is weakened or missing: ${ruleId}`);
 }
 
 async function verifyArchive(root, statusText, errors) {
@@ -277,7 +301,7 @@ export async function analyzeContext(root) {
   for (const legacyHeading of ["Historical review notes", "Validation evidence"]) if (headingExists(status, legacyHeading)) errors.push(`status.md contains legacy history heading: ${legacyHeading}`);
   await verifyLinks(root, agentsPath, agents, errors);
   await verifyLinks(root, statusPath, status, errors);
-  await verifySourceOfTruth(root, errors);
+  await verifySourceOfTruth(root, agents, errors);
   await verifyArchive(root, status, errors);
   return { ok: errors.length === 0, errors, lineCounts: { agents: lineCount(agents), status: lineCount(status) } };
 }
